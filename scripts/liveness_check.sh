@@ -1,89 +1,79 @@
 #!/usr/bin/env bash
-# liveness_check.sh — answer "dzialaja mechanizmy antyhalucynacji?" with evidence.
+# liveness_check.sh - check whether the installed v5.1 skill and its narrow
+# deterministic verifier are actually present and runnable.
 #
-# Checks the THREE separate things:
-#   L1. Files/scripts present and functional (self-test).
-#   L2. Scheduled jobs have actually executed (last_run_at fresh).
-#   L3. Behavioral pipeline is being fed (calibration.jsonl growing).
-#
-# Self-apply rule: do not return "OK" just because the skill file exists.
-# Each layer is reported independently with a verdict and the evidence string.
+# This script intentionally does NOT claim that model behavior is healthy merely
+# because files exist. Legacy calibration/cron state is installation-specific and
+# is reported only when those external artifacts are present.
 
 set -uo pipefail
 
-DIR="$HOME/.hermes/scripts/anti_halluc"
-SKILL_DIR="$HOME/.hermes/skills/software-development/anti-hallucination-protocol"
-CRON_JOB_ID="1b4a422f7443"   # anti-halluc-self-audit (canonical job)
-CALIB_LOG="$DIR/calibration.jsonl"
-MAX_CALIB_STALE_HOURS=48     # if calibration log untouched for >48h, the habit died
-MAX_CRON_STALE_HOURS=48      # daily cron should have run in last 48h
+SKILL_DIR="${AHP_SKILL_DIR:-$HOME/.hermes/skills/software-development/anti-hallucination-protocol}"
+VERIFY="$SKILL_DIR/scripts/verify_claim.py"
+LEGACY_DIR="$HOME/.hermes/scripts/anti_halluc"
+LEGACY_CALIB="$LEGACY_DIR/calibration.jsonl"
 
-echo "==== anti-halluc liveness check — $(date '+%Y-%m-%d %H:%M:%S %Z') ===="
+printf '==== anti-hallucination v5.1 liveness - %s ====\n' "$(date '+%Y-%m-%d %H:%M:%S %Z')"
 
-# ---- L1. Files / functional ----
-echo ""
-echo "L1. Files and self-test:"
-[ -f "$SKILL_DIR/SKILL.md" ] && echo "  [OK]   skill SKILL.md present" \
-                              || echo "  [FAIL] skill SKILL.md missing"
-[ -x "$HOME/.hermes/scripts/verify_claim.sh" ] && echo "  [OK]   verify_claim.sh present and executable" \
-                              || echo "  [FAIL] verify_claim.sh missing or not executable"
-python3 -c "import sys; sys.path.insert(0, '$DIR'); import hard_assert" 2>/dev/null \
-    && echo "  [OK]   hard_assert.py imports cleanly" \
-    || echo "  [FAIL] hard_assert.py broken"
-timeout 15 "$HOME/.hermes/scripts/verify_claim.sh" arxiv 2309.11495 >/dev/null 2>&1 \
-    && echo "  [OK]   verify_claim.sh arxiv self-test passes (CoVe paper)" \
-    || echo "  [FAIL] verify_claim.sh arxiv self-test failed"
-
-# ---- L2. Cron actually running ----
-echo ""
-echo "L2. Scheduled cron last_run freshness:"
-# Use hermes CLI to query the cron job; if not available, leave the check inconclusive.
-if command -v hermes >/dev/null 2>&1; then
-    LAST_RUN=$(hermes cron list 2>/dev/null | grep -A1 "$CRON_JOB_ID" | grep -oE 'last_run[^,]*' || true)
-    echo "  job_id=$CRON_JOB_ID  $LAST_RUN"
-    if echo "$LAST_RUN" | grep -q "null"; then
-        echo "  [FAIL] cron job has last_run=null — never actually fired since creation"
-        echo "         remedy: cronjob action=run job_id=$CRON_JOB_ID  (seed first run manually)"
-    fi
+echo
+echo "L1. Installed skill and deterministic self-test:"
+if [ -f "$SKILL_DIR/SKILL.md" ]; then
+  echo "  [OK]   SKILL.md present"
 else
-    echo "  [SKIP] hermes CLI not on PATH; can't query cron state from shell."
-    echo "         from agent: cronjob action=list, look for $CRON_JOB_ID last_run_at"
+  echo "  [FAIL] SKILL.md missing: $SKILL_DIR/SKILL.md"
 fi
 
-# ---- L3. Behavioral pipeline ----
-echo ""
-echo "L3. Behavioral pipeline (calibration log fed):"
-if [ -f "$CALIB_LOG" ]; then
-    LINES=$(wc -l < "$CALIB_LOG" | tr -d ' ')
-    # macOS stat -f, Linux stat -c
-    if MTIME=$(stat -f %m "$CALIB_LOG" 2>/dev/null); then :; else MTIME=$(stat -c %Y "$CALIB_LOG"); fi
-    NOW=$(date +%s)
+if [ -f "$VERIFY" ]; then
+  echo "  [OK]   verify_claim.py present"
+else
+  echo "  [FAIL] verify_claim.py missing: $VERIFY"
+fi
+
+if command -v python3 >/dev/null 2>&1 && [ -f "$VERIFY" ]; then
+  if python3 "$VERIFY" file-exists "$SKILL_DIR/SKILL.md" --kind file >/dev/null 2>&1; then
+    echo "  [OK]   verify_claim.py self-test passed on installed SKILL.md"
+  else
+    echo "  [FAIL] verify_claim.py self-test failed"
+  fi
+else
+  echo "  [SKIP] python3 or verifier unavailable"
+fi
+
+echo
+echo "L2. Structural checker:"
+INTEGRITY="$SKILL_DIR/scripts/check_v5_integrity.py"
+if command -v python3 >/dev/null 2>&1 && [ -f "$INTEGRITY" ]; then
+  if python3 "$INTEGRITY" --root "$SKILL_DIR" >/dev/null 2>&1; then
+    echo "  [OK]   repository-local integrity checker passed"
+  else
+    echo "  [FAIL] repository-local integrity checker failed"
+  fi
+else
+  echo "  [SKIP] check_v5_integrity.py unavailable"
+fi
+
+echo
+echo "L3. Optional legacy installation telemetry:"
+if [ -f "$LEGACY_CALIB" ]; then
+  LINES=$(wc -l < "$LEGACY_CALIB" | tr -d ' ')
+  if MTIME=$(stat -f %m "$LEGACY_CALIB" 2>/dev/null); then :; else MTIME=$(stat -c %Y "$LEGACY_CALIB" 2>/dev/null || echo 0); fi
+  NOW=$(date +%s)
+  if [ "$MTIME" -gt 0 ]; then
     AGE_H=$(( (NOW - MTIME) / 3600 ))
-    echo "  calibration.jsonl: $LINES entries, last modified ${AGE_H}h ago"
-    if [ "$AGE_H" -gt "$MAX_CALIB_STALE_HOURS" ]; then
-        echo "  [FAIL] calibration log untouched for >${MAX_CALIB_STALE_HOURS}h"
-        echo "         the habit of logging claims has broken; verifiers exist but nobody calls them"
-        echo "         remedy: this session, before any strong factual claim, run"
-        echo "         python3 $DIR/calibration_log.py log \"<claim>\" <P_true>"
-    else
-        echo "  [OK]   calibration log fresh"
-    fi
-    if [ "$LINES" -lt 10 ]; then
-        echo "  [WARN] only $LINES total entries — sample size too small for meaningful Brier score"
-    fi
+    echo "  [INFO] legacy calibration.jsonl: $LINES entries, modified ${AGE_H}h ago"
+  else
+    echo "  [INFO] legacy calibration.jsonl exists; mtime unavailable"
+  fi
+  echo "  [INFO] this legacy log is not part of v5.1's portable correctness contract"
 else
-    echo "  [FAIL] calibration.jsonl missing entirely"
+  echo "  [INFO] no legacy calibration pipeline detected - this is not a v5.1 failure"
 fi
 
-# ---- L1 bonus: actual self-audit alert output ----
-echo ""
-echo "L1+. daily_self_audit.sh dry-run (alerts only):"
-OUT=$(bash "$DIR/daily_self_audit.sh" 2>&1 || true)
-if [ -z "$OUT" ]; then
-    echo "  [OK]   silent — nothing to alert"
-else
-    echo "$OUT" | sed 's/^/  /'
-fi
+echo
+echo "L4. Behavioral/runtime enforcement:"
+echo "  [UNKNOWN] Markdown + local deterministic checks cannot prove that an LLM"
+echo "            followed the protocol in real conversations. Measure that with"
+echo "            an external Hermes behavioral benchmark or runtime gate."
 
-echo ""
-echo "==== end liveness check ===="
+echo
+printf '%s\n' '==== end liveness check ===='
