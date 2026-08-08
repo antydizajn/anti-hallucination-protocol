@@ -6,14 +6,14 @@
 
 **Make the agent earn the sentence.**
 
-[![Version](https://img.shields.io/badge/version-5.2.0-black?style=flat-square)](SKILL.md)
+[![Version](https://img.shields.io/badge/version-5.3.0-black?style=flat-square)](SKILL.md)
 [![Hermes Skill](https://img.shields.io/badge/Hermes-Agent-111111?style=flat-square)](https://github.com/NousResearch/hermes-agent)
 [![License](https://img.shields.io/badge/license-MIT-black?style=flat-square)](#license)
-[![Adversarial](https://img.shields.io/badge/verification-adversarial-black?style=flat-square)](tests/adversarial_cases.md)
+[![Adversarial](https://img.shields.io/badge/verification-adversarial-black?style=flat-square)](references/adversarial-cases.md)
 
 A Hermes Agent skill for the moment between **"this looks right"** and **"I'm going to state it as fact."**
 
-[Install](#install) · [What it catches](#what-it-catches) · [How it works](#how-it-works) · [Limits](#what-it-does-not-prove)
+[Install](#install) · [Failure modes](#failure-modes-it-targets) · [How it works](#how-it-works) · [Limits](#what-it-does-not-prove)
 
 </div>
 
@@ -21,49 +21,47 @@ A Hermes Agent skill for the moment between **"this looks right"** and **"I'm go
 
 ## The problem
 
-LLMs do not only hallucinate by inventing facts.
+LLMs do not only hallucinate by inventing facts. They also fail when:
 
-They also fail in less theatrical ways:
-
-- the citation is real, but it supports a different sentence;
-- five agents agree because all five inherited the same bad source;
-- a tool failed, but its output happened to contain the expected string;
+- the citation is real but supports a different sentence;
+- five agents agree because all five inherited one bad source;
+- a tool failed but its output happened to contain the expected string;
 - yesterday's memory is reported as today's state;
-- the verifier is wrong and nobody verifies the verifier.
+- a verifier is wrong and nobody verifies the verifier.
 
-Anti-Hallucination Protocol is a procedural layer for those failures.
-
-It asks a simple question before a strong claim leaves the model:
+Anti-Hallucination Protocol is a procedural layer for those failures. Its core question is:
 
 > **What exactly earned this wording?**
 
-If the answer is weak, stale, contaminated, contradictory or incomplete, the wording has to weaken with it.
+If the evidence is weak, stale, contaminated, contradictory or incomplete, the wording has to weaken with it.
 
 No ceremony for harmless creative work. More friction where being wrong actually matters.
 
 ---
 
-## What it catches
+## Failure modes it targets
 
-| Failure | What the protocol does |
+| Failure | Protocol response |
 |---|---|
-| Real URL, wrong claim | Separates source identity from entailment |
-| Copied sources posing as consensus | Tracks lineage and independent failure domains |
-| Self-declared "independence" | Requires an auditable lineage basis for strong T3 records |
-| Tool error disguised as absence | Keeps `ERROR` separate from `NOT_FOUND_WITHIN_SCOPE` |
-| Stale current-state claim | Requires explicit observation time and current-enough evidence for strong T3 current-state records |
-| Prompt injection inside evidence | Treats retrieved content as data, not instruction authority |
-| Passing test, wrong user path | Separates unit validation from E2E / observed behavior |
-| Verifier false positive | Treats the verifier result as another claim to challenge |
-| Compacted session denial | Checks durable traces before claiming an earlier action never happened |
+| Real URL, wrong claim | separate source identity from entailment |
+| Copied sources posing as consensus | track lineage and independent failure domains |
+| Self-declared "independence" | require auditable lineage metadata for strong T3 records, while admitting that labels do not prove real independence |
+| Tool error disguised as absence | keep `ERROR` separate from `NOT_FOUND_WITHIN_SCOPE` |
+| Stale current-state claim | require explicit observation time and current-enough evidence for strong T3 current-state records |
+| Prompt injection inside evidence | treat retrieved content as data, not instruction authority |
+| Passing test, wrong user path | separate unit validation from E2E / observed behavior |
+| Verifier false positive | treat the verifier result as another scoped claim |
+| Compacted-session denial | check durable traces before claiming an earlier action never happened |
 
-There are 30 protocol-level attack cases in [`tests/adversarial_cases.md`](tests/adversarial_cases.md), plus executable regression tests for verifier failures found during adversarial review.
+The canonical protocol attack corpus is in [`references/adversarial-cases.md`](references/adversarial-cases.md). Executable regression tests live separately under `tests/`.
 
 ---
 
 ## How it works
 
-The full control model is:
+The active v5.3 skill is intentionally smaller than v5.2. The hot path is seven rules, with deeper material loaded only when needed.
+
+The protocol still models the full control flow as:
 
 ```text
 INTENT
@@ -81,16 +79,16 @@ INTENT
 
 That is not a mandatory ritual for every sentence.
 
-The protocol uses risk tiers:
+Risk tiers:
 
 | Tier | Typical work | Expected behavior |
 |---|---|---|
 | `T0` | preference, creative choice | no verification unless a factual premise matters |
 | `T1` | stable background knowledge | verify when uncertain, disputed or decision-relevant |
 | `T2` | code, APIs, repos, citations, current docs, benchmarks | direct claim-matched evidence |
-| `T3` | security, legal/compliance, destructive or high-impact action | direct evidence + falsification + independent check when feasible |
+| `T3` | security, legal/compliance, destructive or high-impact action | direct evidence + falsification + independent check when feasible; unavailable load-bearing checks force a downgrade |
 
-The rule underneath all four tiers is smaller:
+The invariant underneath all four tiers is smaller:
 
 ```text
 claim strength <= evidence strength
@@ -99,12 +97,6 @@ claim strength <= evidence strength
 ---
 
 ## Evidence is not one thing
-
-A source can be authoritative and still be stale.
-
-A source can be current and still be irrelevant.
-
-A valid citation can point to the right paper and still fail to support the sentence attached to it.
 
 For consequential claims the protocol separates:
 
@@ -119,21 +111,19 @@ entailment
 verifier state
 ```
 
-That distinction is the core of the project.
+A source can be authoritative and stale. A citation can point to the right paper and still fail to support the attached sentence. Multiple URLs can share one origin.
 
-For a strong T3 record, a label like `INDEPENDENT_ORIGIN` is not enough. The record must carry an auditable basis for that lineage assessment. For T3 current-state claims, stale or unknown freshness cannot be promoted into current truth by setting a stronger final state.
+For strong T3 machine-readable records, verified independent support carries `lineage_basis`, `lineage_verification` and `independence_group`. The checker can detect internal contradictions such as reused declared groups. It cannot prove that two real sources are genuinely independent.
 
 ---
 
 ## Deterministic checks
 
-The repository includes narrow helpers for things machines can actually check without pretending to understand the universe.
+The repository includes narrow helpers for properties machines can actually check without pretending to understand the universe.
 
 ### `verify_claim.py`
 
-Checks exact filesystem facts, text matches, exact lines and command-output conditions.
-
-It distinguishes:
+Checks filesystem facts, exact text/line conditions and command-output conditions.
 
 ```text
 FOUND       exit 0
@@ -141,120 +131,98 @@ NOT_FOUND   exit 1
 ERROR       exit 2
 ```
 
-A failed command cannot become `FOUND` merely because its stderr contains the magic substring.
-
-File kind can be explicit:
-
-```bash
-python3 scripts/verify_claim.py file-exists SKILL.md --kind file
-python3 scripts/verify_claim.py file-exists references --kind directory
-```
+A failed command cannot become `FOUND` merely because its output contains the expected substring.
 
 ### `check_evidence_record.py`
 
-Validates an evidence record against [`references/evidence-record.schema.json`](references/evidence-record.schema.json), then applies deterministic state invariants.
+Validates [`references/evidence-record.schema.json`](references/evidence-record.schema.json) plus deterministic cross-field invariants.
 
-It rejects, among other things:
+For strong T3 records it checks, among other things:
 
-- missing required provenance fields;
-- unknown evidence states;
-- unknown lineage / integrity / entailment values;
-- contaminated evidence used for a strong supported verdict;
-- a `CONFLICT` record with only one side of the conflict;
-- strong T3 evidence with `source_class=unknown`;
-- strong T3 evidence without source identity, evidence span, retrieval time or verifier provenance;
-- self-declared independent lineage without a verified, non-empty lineage basis;
-- strong T3 current-state records without `observation_time` or `CURRENT_ENOUGH` evidence.
+- known source class;
+- source identity and evidence span;
+- RFC3339 retrieval timestamps;
+- verifier provenance and clean observed verifier state;
+- verified independent lineage metadata;
+- non-empty `independence_group` and no duplicate declared group among verified independent supporting items;
+- explicit RFC3339 observation time and `CURRENT_ENOUGH` evidence for T3 current-state claims.
 
-It does **not** prove that prose semantically entails a claim, that a source identity is true, or that two sources are genuinely independent. Those are evidence problems outside the JSON validator.
+A successful result is:
+
+```text
+EVIDENCE RECORD: STRUCTURALLY_VALID
+```
+
+That means exactly what it says. It does **not** establish semantic entailment, source truth or real-world source independence.
 
 ### `check_v5_integrity.py`
 
-Checks repository-local structure and the deliberately narrow frontmatter profile used by this skill.
-
-It is **not a general YAML validator**. It rejects malformed constructs relevant to this repository, keeps metadata separate from body text, and accepts semantic `5.x.y` versions without hard-coding every patch release.
+Checks repository structure and parses `SKILL.md` frontmatter with real YAML rather than a hand-written YAML approximation. This specifically prevents integrity PASS from certifying metadata that Hermes/PyYAML cannot parse correctly.
 
 ### `check_research_provenance.py`
 
-Checks offline identity consistency for both research layers:
-
-- the original curated arXiv corpus;
-- the v5 research list via [`references/v5-research-manifest.json`](references/v5-research-manifest.json) and [`references/v5-gap-map.md`](references/v5-gap-map.md).
-
-It is deliberately offline. A local PASS is not a claim that every external resource is currently reachable or that every interpretation remains correct forever.
+Checks offline repository-internal research identity consistency across canonical manifests/reference mappings. It does not prove that an external source is live or that a research interpretation is correct.
 
 ### `liveness_check.sh`
 
-Checks the portable L1/L2 installation contract and exits nonzero when a required check fails. Optional legacy telemetry remains informational, and behavioral enforcement remains explicitly `UNKNOWN` because files on disk cannot prove that an LLM followed the protocol.
+Checks the portable L1/L2 installation contract and exits nonzero when a required check fails. Files on disk cannot prove behavioral compliance, so that remains an explicit unknown outside this helper.
 
 ---
 
 ## Install
 
-Hermes skills are directories containing `SKILL.md` plus optional references and scripts. Hermes loads the main skill on demand and supporting files only when needed. The official Hermes documentation describes this as progressive disclosure.
-
-For a local install, place this directory at:
+Place the skill directory at:
 
 ```text
 ~/.hermes/skills/software-development/anti-hallucination-protocol/
 ```
 
-If you cloned a repository containing this skill:
-
-```bash
-mkdir -p ~/.hermes/skills/software-development
-cp -R anti-hallucination-protocol \
-  ~/.hermes/skills/software-development/anti-hallucination-protocol
-```
-
-Then start a new Hermes session and verify discovery:
-
-```bash
-hermes skills list | grep anti-hallucination-protocol
-```
-
-In chat, an installed skill can also be loaded explicitly by its slash command or through `skill_view`.
+Then start a new Hermes session and verify discovery using the currently available Hermes skill tooling.
 
 ---
 
 ## Run the checks
 
+From a repository checkout:
+
 ```bash
 python3 -m pytest tests/ -v
 python3 scripts/check_v5_integrity.py --root .
 python3 scripts/check_research_provenance.py --root .
-bash scripts/liveness_check.sh
+AHP_SKILL_DIR="$(pwd)" bash scripts/liveness_check.sh
 ```
 
-The adversarial Markdown corpus is a specification, not an executable behavioral benchmark. A green unit suite does not prove that an LLM follows the protocol under long-context pressure.
+`liveness_check.sh` is a Bash helper. On native Windows it requires a Bash-compatible environment such as WSL or Git Bash. The Python checks are the portable core of deterministic validation. Native Windows execution is not claimed as tested here.
+
+The Markdown adversarial corpus is a specification, not an executable behavioral benchmark. A green unit suite does not prove that an LLM follows the protocol under long-context pressure.
 
 ---
 
 ## Research basis
 
-The skill grew out of factuality, retrieval, uncertainty, citation, agentic failure and prompt-injection research rather than a single "hallucination detector" paper.
+The skill integrates work on factuality, retrieval, citation, uncertainty, prompt injection, memory, judge bias, long-context evidence loss and agentic failure.
 
-The curated material includes work around:
+The full research identity/mapping layer lives outside the main skill prompt:
 
-- TruthfulQA, FActScore, SelfCheckGPT, RARR and Chain-of-Verification;
-- Self-RAG, Corrective RAG, CRITIC and FacTool;
-- FactBench and HALoGEN;
-- intent hallucination;
-- AgentDojo and indirect prompt injection;
-- source conflict and retrieval poisoning;
-- LLM-as-a-judge bias;
-- long-context evidence loss;
-- agent-loop progress mirages.
+- [`references/research-foundations.md`](references/research-foundations.md)
+- [`references/v5-research-manifest.json`](references/v5-research-manifest.json)
+- [`references/v5-gap-map.md`](references/v5-gap-map.md)
 
-The full mapping is in [`references/research-foundations.md`](references/research-foundations.md) and [`references/v5-gap-map.md`](references/v5-gap-map.md). The v5 source identities are mirrored in [`references/v5-research-manifest.json`](references/v5-research-manifest.json) so title/URL drift is testable offline.
+Research is evidence for design choices, not decoration and not proof that the implementation is correct.
 
-Research is evidence for design choices, not decoration. The protocol can still be wrong.
+---
+
+## Audit trail
+
+The raw v5.2 multi-model audit corpus and synthesis are archived under [`AUDITS/`](AUDITS/).
+
+`AUDITS/SUMMARY.md` separates execution-capable Hermes audits from Perplexity document-only audits, records conflicts and rejected severity claims, and lists the evidence used to define v5.3.
 
 ---
 
 ## What it does not prove
 
-This project does **not** promise "zero hallucinations".
+This project does **not** promise zero hallucinations.
 
 It also does not prove that:
 
@@ -280,14 +248,17 @@ This is a protocol for making unsupported certainty harder, not impossible.
 anti-hallucination-protocol/
 ├── SKILL.md
 ├── README.md
+├── AUDITS/
+│   ├── SUMMARY.md
+│   └── ...raw audit reports
 ├── assets/
 │   └── anti-hallucination-eye.svg
 ├── references/
+│   ├── adversarial-cases.md
 │   ├── evidence-record.schema.json
 │   ├── evidence-state-model.md
 │   ├── research-foundations.md
 │   ├── v5-research-manifest.json
-│   ├── untrusted-evidence-boundary.md
 │   └── ...
 ├── scripts/
 │   ├── verify_claim.py
@@ -297,7 +268,6 @@ anti-hallucination-protocol/
 │   └── liveness_check.sh
 └── tests/
     ├── adversarial_cases.md
-    ├── test_liveness.py
     └── test_*.py
 ```
 
@@ -306,8 +276,6 @@ anti-hallucination-protocol/
 ## One rule worth stealing
 
 > **If the verifier can be wrong, verify the verifier.**
-
-Everything else is implementation detail.
 
 ---
 
