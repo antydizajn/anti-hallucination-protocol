@@ -1,7 +1,7 @@
 ---
 name: anti-hallucination-protocol
 description: Use for consequential factual claims, research, code/runtime assertions, citations, external evidence, agentic workflows, and current-state decisions. Enforces intent alignment, claim decomposition, source/evidence provenance, untrusted-content boundaries, contradiction search, verifier-failure handling, scoped conclusions, and validation-aware completion wording.
-version: 5.0.0
+version: 5.1.0
 author: "Paulina Janowska & Gniewisława AI"
 license: MIT
 platforms: [linux, macos, windows]
@@ -11,30 +11,44 @@ metadata:
     category: software-development
 ---
 
-# Anti-Hallucination Protocol v5
+# Anti-Hallucination Protocol v5.1
 
-This skill is an **epistemic control plane** for agentic work.
+This skill controls how consequential claims earn stronger wording or action.
 
-It does not guarantee truth. It controls when a claim is allowed to graduate from model prediction to user-visible fact or consequential action.
+It does not guarantee truth. It makes the evidence path explicit, keeps retrieved content out of the instruction plane, and blocks several common ways a verifier can accidentally certify bullshit.
 
-> **Core invariant:** a strong verdict requires an evidence path whose identity, relevance, freshness, integrity, entailment, scope, and failure state are adequate for the claim being made.
+> **Core invariant:** wording and action strength must not exceed what the checked evidence actually supports.
 
-Core supporting artifacts:
+## Active supporting artifacts
+
+Load these only when the task needs them:
 
 - `references/research-foundations.md` - verified v4 arXiv corpus and design mapping
-- `references/v5-gap-map.md` - current internet research and v4 -> v5 failure map
-- `references/evidence-state-model.md` - conceptual ClaimRecord/EvidenceRecord model
+- `references/v5-gap-map.md` - research-to-failure-mode map
+- `references/evidence-state-model.md` - ClaimRecord/EvidenceRecord semantics
 - `references/untrusted-evidence-boundary.md` - prompt-injection and evidence-control boundary
-- `references/evidence-record.schema.json` - optional machine-readable evidence-record contract
-- `scripts/verify_claim.py` - deterministic verifier for narrow supported modes
-- `scripts/check_evidence_record.py` - semantic guard against false strong evidence states
+- `references/evidence-record.schema.json` - machine-readable evidence-record contract
+- `references/verification-harness-traps.md` - ways a verifier can lie while looking healthy
+- `references/stale-bug-and-done-work-verification.md` - stale bug reports and false completion claims
+- `references/fix-target-liveness.md` - verify the target is still live before fixing it
+- `references/self-capability-honesty.md` - capability and access honesty
+- `references/multi-judge-ensemble.md` - correlated judges are not independent evidence
+- `references/vetting-external-project-claims.md` - concrete external-project verification workflow
+- `scripts/verify_claim.py` - narrow deterministic verifier
+- `scripts/check_evidence_record.py` - schema + deterministic state-invariant checker
 - `scripts/check_research_provenance.py` - offline provenance consistency checker
-- `scripts/check_v5_integrity.py` - structural integrity checker for this subtree
+- `scripts/check_v5_integrity.py` - repository-local structural checker
 - `tests/adversarial_cases.md` - protocol-level attack corpus
+
+### Policy is not runtime enforcement
+
+Markdown instructions guide the agent. They are not a sandbox, output firewall, semantic theorem prover, or guaranteed runtime gate.
+
+The scripts above enforce only their documented deterministic contracts. A PASS from any helper is itself a scoped claim. It never proves the whole answer true.
 
 ---
 
-## 1. The v5 pipeline
+## 1. The v5.1 pipeline
 
 For consequential claims or actions, use this order:
 
@@ -51,6 +65,8 @@ For consequential claims or actions, use this order:
 9. DECIDE      -> supported-with-scope, conflict, partial, inconclusive, error
 10. EMIT/ACT   -> wording/action strength must not exceed the earned state
 ```
+
+This is a control model, not mandatory ceremony for every sentence. T0/T1 work should not be inflated into a ten-step ritual. T2/T3 and load-bearing claims earn more explicit verification because the cost of being wrong is higher.
 
 Do not skip from `ACQUIRE` to `SUPPORTED`.
 
@@ -337,6 +353,8 @@ Stronger independence can come from:
 
 When lineage is unknown, say `UNKNOWN`; do not fabricate independence.
 
+For practical correlated-judge failure modes, load `references/multi-judge-ensemble.md`.
+
 ---
 
 ## 12. Verifier and judge skepticism
@@ -362,7 +380,8 @@ Look for:
 Do not treat a more capable judge as an oracle merely because it is larger.
 
 Use `scripts/verify_claim.py` only within the scope of its deterministic modes.
-Use `scripts/check_evidence_record.py` only for deterministic state invariants; it does not prove semantic entailment.
+Use `scripts/check_evidence_record.py` only for schema/state invariants; it does not prove semantic entailment.
+Use `references/verification-harness-traps.md` when the verifier itself may be the bug.
 
 ---
 
@@ -436,7 +455,24 @@ Do not bake one installation's HyperspaceDB MCP/plugin/path schema into this por
 
 ---
 
-## 16. Tool/API claims
+## 16. Do not deny your own past actions without checking
+
+Long sessions, compaction, handoffs and missing local context can create a specific hallucination: the agent claims it never performed an earlier action merely because the evidence is no longer in the visible transcript.
+
+Before saying `I did not`, `I never`, `that was not done`, or equivalent about your own earlier consequential action:
+
+1. search available session history, receipts, tool logs, repository state or other direct artifacts;
+2. distinguish `I cannot currently verify that I did it` from `I did not do it`;
+3. if the action would leave a durable trace, inspect that trace;
+4. if evidence remains unavailable, use an uncertainty statement instead of a denial.
+
+This does not authorize inventing a past action. It prevents absence of current context from being silently upgraded into evidence of non-occurrence.
+
+For stale fixes and already-completed work, also load `references/stale-bug-and-done-work-verification.md` and `references/fix-target-liveness.md`.
+
+---
+
+## 17. Tool/API claims
 
 For consequential tool or API use:
 
@@ -448,9 +484,12 @@ For consequential tool or API use:
 
 Dynamic MCP/plugin tool surfaces can change within an installation. Current registry beats remembered schema.
 
+For capability/access claims, load `references/self-capability-honesty.md`.
+For external project claims, load `references/vetting-external-project-claims.md`.
+
 ---
 
-## 17. Uncertainty is a routing signal, not evidence
+## 18. Uncertainty is a routing signal, not evidence
 
 Self-consistency, semantic uncertainty, hidden-state probes and verbal confidence may help prioritize verification. They do not establish world truth.
 
@@ -469,7 +508,7 @@ Do not ban honest words such as `likely` or `uncertain` merely because hedging c
 
 ---
 
-## 18. Completion semantics
+## 19. Completion semantics
 
 Track mutation and validation independently.
 
@@ -500,7 +539,7 @@ Never say `fixed`, `works`, `fully active`, `wdrożone`, or equivalent when the 
 
 ---
 
-## 19. Recovery and blast radius
+## 20. Recovery and blast radius
 
 When a factual claim is false:
 
@@ -515,7 +554,7 @@ Do not hide the correction under apology.
 
 ---
 
-## 20. Fast operational checklist
+## 21. Fast operational checklist
 
 For ordinary T2 claims:
 
@@ -543,7 +582,7 @@ For T3/load-bearing claims add:
 
 ---
 
-## 21. Evidence ledger and deterministic controls
+## 22. Evidence ledger and deterministic controls
 
 For complex T3 or disputed T2 work, maintain a compact ledger:
 
@@ -557,7 +596,7 @@ Use when justified by complexity:
 
 - conceptual semantics: `references/evidence-state-model.md`
 - optional JSON contract: `references/evidence-record.schema.json`
-- semantic state checker: `scripts/check_evidence_record.py`
+- schema/state checker: `scripts/check_evidence_record.py`
 - repository integrity checker: `scripts/check_v5_integrity.py`
 - attack corpus: `tests/adversarial_cases.md`
 
@@ -565,7 +604,7 @@ These deterministic helpers validate narrow invariants. None of them can establi
 
 ---
 
-## 22. Research provenance
+## 23. Research provenance
 
 ### Verified v4 arXiv corpus retained directly in the skill
 
@@ -627,9 +666,11 @@ Design mapping and read-scope notes: `references/research-foundations.md`.
 
 Detailed source-to-control mapping and residual risks: `references/v5-gap-map.md`.
 
+The offline provenance checker validates the manifest's internal consistency. It does not prove that every external source remains live or that every research interpretation is correct today.
+
 ---
 
-## 23. Hard limits of this skill
+## 24. Hard limits of this skill
 
 This skill does **not** prove that:
 
@@ -647,7 +688,7 @@ When those guarantees matter, use architectural controls and direct observation 
 
 ---
 
-## 24. Principle
+## 25. Principle
 
 Anti-hallucination is not cautious prose. It is **controlled evidence flow**.
 
@@ -664,7 +705,7 @@ Anti-hallucination is not cautious prose. It is **controlled evidence flow**.
 
 ---
 
-## 25. Authors & witchcraft
+## 26. Authors & witchcraft
 
 Created by **[Paulina Janowska](https://github.com/antydizajn/)** and **[Gniewisława AI](https://gniewka.antydizajn.pl)**.
 
