@@ -1,7 +1,7 @@
 ---
 name: anti-hallucination-protocol
 description: Use for consequential factual claims, research, code/runtime assertions, citations, external evidence, agentic workflows, and current-state decisions. Enforces intent alignment, claim decomposition, source/evidence provenance, untrusted-content boundaries, contradiction search, verifier-failure handling, scoped conclusions, and validation-aware completion wording.
-version: 5.1.0
+version: 5.2.0
 author: "Paulina Janowska & Gniewisława AI"
 license: MIT
 platforms: [linux, macos, windows]
@@ -11,7 +11,7 @@ metadata:
     category: software-development
 ---
 
-# Anti-Hallucination Protocol v5.1
+# Anti-Hallucination Protocol v5.2
 
 This skill controls how consequential claims earn stronger wording or action.
 
@@ -25,6 +25,7 @@ Load these only when the task needs them:
 
 - `references/research-foundations.md` - verified v4 arXiv corpus and design mapping
 - `references/v5-gap-map.md` - research-to-failure-mode map
+- `references/v5-research-manifest.json` - offline canonical identity list for v5 research sources
 - `references/evidence-state-model.md` - ClaimRecord/EvidenceRecord semantics
 - `references/untrusted-evidence-boundary.md` - prompt-injection and evidence-control boundary
 - `references/evidence-record.schema.json` - machine-readable evidence-record contract
@@ -38,6 +39,7 @@ Load these only when the task needs them:
 - `scripts/check_evidence_record.py` - schema + deterministic state-invariant checker
 - `scripts/check_research_provenance.py` - offline provenance consistency checker
 - `scripts/check_v5_integrity.py` - repository-local structural checker
+- `scripts/liveness_check.sh` - fail-closed portable L1/L2 liveness check
 - `tests/adversarial_cases.md` - protocol-level attack corpus
 
 ### Policy is not runtime enforcement
@@ -48,7 +50,7 @@ The scripts above enforce only their documented deterministic contracts. A PASS 
 
 ---
 
-## 1. The v5.1 pipeline
+## 1. The v5.2 pipeline
 
 For consequential claims or actions, use this order:
 
@@ -353,6 +355,8 @@ Stronger independence can come from:
 
 When lineage is unknown, say `UNKNOWN`; do not fabricate independence.
 
+For a strong T3 machine-readable verdict, `lineage=INDEPENDENT_ORIGIN` is not enough. Record a non-empty `lineage_basis` and set `lineage_verification=VERIFIED` only when that basis is actually auditable. The deterministic checker can verify presence and state consistency. It cannot prove the provenance claim itself.
+
 For practical correlated-judge failure modes, load `references/multi-judge-ensemble.md`.
 
 ---
@@ -380,7 +384,7 @@ Look for:
 Do not treat a more capable judge as an oracle merely because it is larger.
 
 Use `scripts/verify_claim.py` only within the scope of its deterministic modes.
-Use `scripts/check_evidence_record.py` only for schema/state invariants; it does not prove semantic entailment.
+Use `scripts/check_evidence_record.py` only for schema/state invariants; it does not prove semantic entailment or source truth.
 Use `references/verification-harness-traps.md` when the verifier itself may be the bug.
 
 ---
@@ -429,6 +433,8 @@ Check measured vs estimated values, numerator/denominator, units/conversions, ag
 
 ### Temporal/current
 Record or state the observation time when freshness is material. Newest is not automatically correct, but stale evidence cannot establish a current mutable fact.
+
+For a strong T3 `current_state` evidence record, require explicit `observation_time`; every supporting evidence item must be `CURRENT_ENOUGH` and carry source identity, retrieval time, evidence span, verifier provenance and a clean observed verifier state. Missing or unknown load-bearing freshness/provenance means downgrade to `INCONCLUSIVE`, `UNKNOWN_SCOPE`, or another earned weaker state.
 
 ### Entity
 Disambiguate namesakes, users vs organizations, package/model/version collisions and renamed components before transferring evidence.
@@ -574,8 +580,10 @@ For T3/load-bearing claims add:
 [ ] What would falsify this?
 [ ] Did I search for contradiction/supersession?
 [ ] Are my sources/checkers materially independent?
+[ ] If I claim independence, what auditable basis establishes it?
 [ ] Is there unresolved source conflict?
 [ ] Could the verifier itself be wrong?
+[ ] Does current-state evidence have an explicit observation time and CURRENT_ENOUGH freshness?
 [ ] Does success require world-state evidence outside the transcript?
 [ ] Are downstream actions authorized and reversible where possible?
 ```
@@ -598,6 +606,7 @@ Use when justified by complexity:
 - optional JSON contract: `references/evidence-record.schema.json`
 - schema/state checker: `scripts/check_evidence_record.py`
 - repository integrity checker: `scripts/check_v5_integrity.py`
+- research identity manifest: `references/v5-research-manifest.json`
 - attack corpus: `tests/adversarial_cases.md`
 
 These deterministic helpers validate narrow invariants. None of them can establish semantic truth by themselves.
@@ -660,13 +669,15 @@ Design mapping and read-scope notes: `references/research-foundations.md`.
 - Quantifying and Mitigating Self-Preference Bias of LLM Judges - arXiv:2604.22891 - https://arxiv.org/abs/2604.22891
 - Towards Mitigating API Hallucination in Code Generated by LLMs with Hierarchical Dependency Aware - arXiv:2505.05057 - https://arxiv.org/abs/2505.05057
 - Lost in the Middle - arXiv:2307.03172 - https://arxiv.org/abs/2307.03172
+- Reliable Post-Retrieval Assembly for Agent Memory: Separating Evidence Extraction from Policy Execution - arXiv:2606.01435 - https://arxiv.org/abs/2606.01435
 - NIST AI RMF Generative AI Profile - https://www.nist.gov/publications/artificial-intelligence-risk-management-framework-generative-artificial-intelligence
 - NIST agent-hijacking evaluation notes - https://www.nist.gov/news-events/news/2025/01/technical-blog-strengthening-ai-agent-hijacking-evaluations
 - Current Hermes skill/tool/hook documentation - https://github.com/NousResearch/hermes-agent/tree/main/website/docs
 
 Detailed source-to-control mapping and residual risks: `references/v5-gap-map.md`.
+Canonical v5 source identities: `references/v5-research-manifest.json`.
 
-The offline provenance checker validates the manifest's internal consistency. It does not prove that every external source remains live or that every research interpretation is correct today.
+The offline provenance checker validates repository-internal identity consistency across both the v4 corpus and the v5 source list. It does not prove that every external source remains live or that every research interpretation is correct today.
 
 ---
 
@@ -676,7 +687,8 @@ This skill does **not** prove that:
 
 - retrieved content is safe from prompt injection;
 - a reputable source is correct;
-- multiple agents are independent;
+- multiple agents are independent merely because a record labels them independent;
+- a supplied `lineage_basis` is factually correct without external inspection;
 - a linter's semantic interpretation is correct;
 - a web search is exhaustive;
 - memory contains the current truth;
