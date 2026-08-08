@@ -6,7 +6,7 @@
 
 **Make the agent earn the sentence.**
 
-[![Version](https://img.shields.io/badge/version-5.3.0-black?style=flat-square)](SKILL.md)
+[![Version](https://img.shields.io/badge/version-5.4.0-black?style=flat-square)](SKILL.md)
 [![Hermes Skill](https://img.shields.io/badge/Hermes-Agent-111111?style=flat-square)](https://github.com/NousResearch/hermes-agent)
 [![License](https://img.shields.io/badge/license-MIT-black?style=flat-square)](#license)
 [![Adversarial](https://img.shields.io/badge/verification-adversarial-black?style=flat-square)](references/adversarial-cases.md)
@@ -41,6 +41,8 @@ No ceremony for harmless creative work. More friction where being wrong actually
 
 ## Failure modes it targets
 
+These are design targets, not guarantees that a Markdown skill will force correct behavior in every model/runtime.
+
 | Failure | Protocol response |
 |---|---|
 | Real URL, wrong claim | separate source identity from entailment |
@@ -48,7 +50,7 @@ No ceremony for harmless creative work. More friction where being wrong actually
 | Self-declared "independence" | require auditable lineage metadata for strong T3 records, while admitting that labels do not prove real independence |
 | Tool error disguised as absence | keep `ERROR` separate from `NOT_FOUND_WITHIN_SCOPE` |
 | Stale current-state claim | require explicit observation time and current-enough evidence for strong T3 current-state records |
-| Prompt injection inside evidence | treat retrieved content as data, not instruction authority |
+| Prompt injection inside evidence | instruct the agent to treat retrieved content as data, not instruction authority |
 | Passing test, wrong user path | separate unit validation from E2E / observed behavior |
 | Verifier false positive | treat the verifier result as another scoped claim |
 | Compacted-session denial | check durable traces before claiming an earlier action never happened |
@@ -59,9 +61,9 @@ The canonical protocol attack corpus is in [`references/adversarial-cases.md`](r
 
 ## How it works
 
-The active v5.3 skill is intentionally smaller than v5.2. The hot path is seven rules, with deeper material loaded only when needed.
+The active v5.4 skill keeps the seven-rule hot path introduced in v5.3 and tightens the machine-checkable contracts around it.
 
-The protocol still models the full control flow as:
+The protocol models the full control flow as:
 
 ```text
 INTENT
@@ -77,7 +79,7 @@ INTENT
   -> EMIT / ACT
 ```
 
-That is not a mandatory ritual for every sentence.
+That is not a mandatory ritual for every sentence. Ordinary T2 work normally uses the hot path plus a direct claim-matched check. Deeper references and helpers are for the failure modes that actually matter to the task.
 
 Risk tiers:
 
@@ -85,7 +87,7 @@ Risk tiers:
 |---|---|---|
 | `T0` | preference, creative choice | no verification unless a factual premise matters |
 | `T1` | stable background knowledge | verify when uncertain, disputed or decision-relevant |
-| `T2` | code, APIs, repos, citations, current docs, benchmarks | direct claim-matched evidence |
+| `T2` | code, APIs, repos, citations, current docs, benchmarks | direct claim-matched evidence; hot path is normally sufficient |
 | `T3` | security, legal/compliance, destructive or high-impact action | direct evidence + falsification + independent check when feasible; unavailable load-bearing checks force a downgrade |
 
 The invariant underneath all four tiers is smaller:
@@ -113,13 +115,15 @@ verifier state
 
 A source can be authoritative and stale. A citation can point to the right paper and still fail to support the attached sentence. Multiple URLs can share one origin.
 
-For strong T3 machine-readable records, verified independent support carries `lineage_basis`, `lineage_verification` and `independence_group`. The checker can detect internal contradictions such as reused declared groups. It cannot prove that two real sources are genuinely independent.
+For strong T3 machine-readable records, supporting evidence must be `CLEAN_OBSERVED`, and verified independent support carries `lineage_basis`, `lineage_verification` and `independence_group`. The checker can detect internal contradictions such as reused declared groups. It cannot prove that two real sources are genuinely independent.
 
 ---
 
 ## Deterministic checks
 
 The repository includes narrow helpers for properties machines can actually check without pretending to understand the universe.
+
+Hermes does **not** automatically turn these scripts into runtime enforcement when the skill loads. They are invoked explicitly when needed. When Hermes skill template substitution is enabled, `${HERMES_SKILL_DIR}` resolves the installed skill directory so helper calls do not depend on the current working directory.
 
 ### `verify_claim.py`
 
@@ -141,11 +145,14 @@ For strong T3 records it checks, among other things:
 
 - known source class;
 - source identity and evidence span;
-- RFC3339 retrieval timestamps;
+- strict RFC3339 retrieval timestamps;
+- `integrity=CLEAN_OBSERVED` for supporting evidence;
 - verifier provenance and clean observed verifier state;
 - verified independent lineage metadata;
 - non-empty `independence_group` and no duplicate declared group among verified independent supporting items;
-- explicit RFC3339 observation time and `CURRENT_ENOUGH` evidence for T3 current-state claims.
+- explicit strict RFC3339 observation time and `CURRENT_ENOUGH` evidence for T3 current-state claims.
+
+The checker also rejects a canonical schema containing an assertion keyword it does not implement. Silently ignoring a future schema constraint would create a false validation path.
 
 A successful result is:
 
@@ -157,7 +164,7 @@ That means exactly what it says. It does **not** establish semantic entailment, 
 
 ### `check_v5_integrity.py`
 
-Checks repository structure and parses `SKILL.md` frontmatter with real YAML rather than a hand-written YAML approximation. This specifically prevents integrity PASS from certifying metadata that Hermes/PyYAML cannot parse correctly.
+Checks repository structure and parses `SKILL.md` frontmatter with real YAML rather than a hand-written YAML approximation. The v5.4 checker pins the exact public release version `5.4.0`, so a different v5 release cannot silently receive the same release-integrity PASS.
 
 ### `check_research_provenance.py`
 
@@ -166,6 +173,8 @@ Checks offline repository-internal research identity consistency across canonica
 ### `liveness_check.sh`
 
 Checks the portable L1/L2 installation contract and exits nonzero when a required check fails. Files on disk cannot prove behavioral compliance, so that remains an explicit unknown outside this helper.
+
+If a helper is unavailable in the active environment, the policy still applies, but deterministic validation must be reported as not performed rather than silently treated as passed.
 
 ---
 
@@ -192,9 +201,15 @@ python3 scripts/check_research_provenance.py --root .
 AHP_SKILL_DIR="$(pwd)" bash scripts/liveness_check.sh
 ```
 
+When the skill is loaded in Hermes and template substitution is enabled, a bundled checker can also be invoked without current-directory assumptions, for example:
+
+```bash
+python3 ${HERMES_SKILL_DIR}/scripts/check_evidence_record.py record.json
+```
+
 `liveness_check.sh` is a Bash helper. On native Windows it requires a Bash-compatible environment such as WSL or Git Bash. The Python checks are the portable core of deterministic validation. Native Windows execution is not claimed as tested here.
 
-The Markdown adversarial corpus is a specification, not an executable behavioral benchmark. A green unit suite does not prove that an LLM follows the protocol under long-context pressure.
+The Markdown adversarial corpus is a specification, not an executable behavioral benchmark. A green unit suite does not prove that an LLM follows the protocol under long-context pressure. No behavioral obedience benchmark is claimed by this release.
 
 ---
 
@@ -214,9 +229,9 @@ Research is evidence for design choices, not decoration and not proof that the i
 
 ## Audit trail
 
-The raw v5.2 multi-model audit corpus and synthesis are archived under [`AUDITS/`](AUDITS/).
+The v5.2 multi-model audit corpus and synthesis are archived under [`AUDITS/`](AUDITS/).
 
-`AUDITS/SUMMARY.md` separates execution-capable Hermes audits from Perplexity document-only audits, records conflicts and rejected severity claims, and lists the evidence used to define v5.3.
+`AUDITS/SUMMARY.md` separates execution-capable Hermes audits from Perplexity document-only audits, records conflicts and rejected severity claims, and tracks how findings were dispositioned in later releases.
 
 ---
 
@@ -234,7 +249,8 @@ It also does not prove that:
 - search was exhaustive;
 - memory contains current truth;
 - a passing test exercised the real user path;
-- Markdown instructions were obeyed at runtime.
+- Markdown instructions were obeyed at runtime;
+- a model will obey the complete protocol under long-context pressure.
 
 Those guarantees need architecture, sandboxing, external observation, executable checks or behavioral evaluation outside the prompt.
 
@@ -250,7 +266,7 @@ anti-hallucination-protocol/
 ├── README.md
 ├── AUDITS/
 │   ├── SUMMARY.md
-│   └── ...raw audit reports
+│   └── ...audit reports
 ├── assets/
 │   └── anti-hallucination-eye.svg
 ├── references/
