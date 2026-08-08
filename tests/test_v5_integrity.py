@@ -25,7 +25,7 @@ def write_minimal_tree(tmp_path: Path, skill_text: str) -> Path:
     return root
 
 
-def valid_skill(version: str = "5.3.0") -> str:
+def valid_skill(version: str = "5.4.0") -> str:
     states = "\n".join(mod.REQUIRED_STATES)
     refs = "\n".join(mod.ACTIVE_REFERENCES)
     return f'''---
@@ -51,21 +51,28 @@ def test_happy_path(tmp_path):
     assert mod.validate(root) == []
 
 
-def test_other_v5_semver_is_structurally_allowed(tmp_path):
+def test_other_v5_semver_is_rejected_by_release_checker(tmp_path):
     root = write_minimal_tree(tmp_path, valid_skill("5.9.3"))
-    assert mod.validate(root) == []
+    errors = mod.validate(root)
+    assert any("expected exact release version '5.4.0'" in e for e in errors)
+
+
+def test_previous_v5_release_is_rejected(tmp_path):
+    root = write_minimal_tree(tmp_path, valid_skill("5.3.0"))
+    errors = mod.validate(root)
+    assert any("expected exact release version '5.4.0'" in e for e in errors)
 
 
 def test_wrong_major_version_fails(tmp_path):
     root = write_minimal_tree(tmp_path, valid_skill("4.0.0"))
     errors = mod.validate(root)
-    assert any("expected semantic v5 version" in e for e in errors)
+    assert any("expected exact release version '5.4.0'" in e for e in errors)
 
 
 def test_non_semver_version_fails(tmp_path):
-    root = write_minimal_tree(tmp_path, valid_skill("five-point-three"))
+    root = write_minimal_tree(tmp_path, valid_skill("five-point-four"))
     errors = mod.validate(root)
-    assert any("expected semantic v5 version" in e for e in errors)
+    assert any("expected exact release version '5.4.0'" in e for e in errors)
 
 
 def test_missing_required_file_fails(tmp_path):
@@ -97,17 +104,17 @@ def test_dead_backtick_path_fails(tmp_path):
 
 
 def test_no_frontmatter_fails_even_if_body_contains_version_string(tmp_path):
-    fake = "version: 5.3.0\n" + "\n".join(mod.REQUIRED_STATES + mod.ACTIVE_REFERENCES)
+    fake = "version: 5.4.0\n" + "\n".join(mod.REQUIRED_STATES + mod.ACTIVE_REFERENCES)
     root = write_minimal_tree(tmp_path, fake)
     errors = mod.validate(root)
     assert any("must begin with YAML frontmatter" in e for e in errors)
 
 
-def test_body_version_cannot_mask_wrong_major_frontmatter_version(tmp_path):
-    fake = valid_skill("4.0.0") + "\nversion: 5.3.0\n"
+def test_body_version_cannot_mask_wrong_frontmatter_version(tmp_path):
+    fake = valid_skill("5.3.0") + "\nversion: 5.4.0\n"
     root = write_minimal_tree(tmp_path, fake)
     errors = mod.validate(root)
-    assert any("expected semantic v5 version" in e for e in errors)
+    assert any("expected exact release version '5.4.0'" in e for e in errors)
 
 
 def test_unclosed_frontmatter_fails(tmp_path):
@@ -187,8 +194,8 @@ def test_metadata_hermes_must_be_mapping(tmp_path):
 
 def test_duplicate_top_level_key_fails(tmp_path):
     fake = valid_skill().replace(
-        "version: 5.3.0",
-        "version: 5.3.0\nversion: 5.3.1",
+        "version: 5.4.0",
+        "version: 5.4.0\nversion: 5.4.1",
     )
     root = write_minimal_tree(tmp_path, fake)
     errors = mod.validate(root)
