@@ -44,6 +44,16 @@ jobs:
           git clone "$src" "$work/source"
           git clone --branch main "$dst" "$work/current"
 
+          echo "=== standalone-only commit candidates ==="
+          mapfile -t extra_commits < <(
+            git -C "$work/current" log --reverse --format='%H' -- \
+              LICENSE \
+              AUDITS/gpt-5.6-sol-v5.4-prompt-review.md
+          )
+          for commit in "${extra_commits[@]}"; do
+            git -C "$work/current" show -s --format='%H %aI %an <%ae> %s' "$commit"
+          done
+
           cd "$work/source"
           git filter-repo --force \
             --path software-development/anti-hallucination-protocol/ \
@@ -58,13 +68,21 @@ jobs:
           echo "first filtered version=$first_version"
           test "$first_version" = "2.0.0"
 
+          git remote add current "$work/current"
+          git fetch current main
+
+          for commit in "${extra_commits[@]}"; do
+            echo "cherry-picking standalone-only commit: $commit"
+            git cherry-pick "$commit"
+          done
+
           source_tree="$(git rev-parse HEAD^{tree})"
           current_tree="$(git -C "$work/current" rev-parse HEAD^{tree})"
-          echo "filtered_source_tree=$source_tree"
+          echo "rebuilt_source_tree=$source_tree"
           echo "standalone_main_tree=$current_tree"
 
           if [ "$source_tree" != "$current_tree" ]; then
-            echo "ERROR: filtered hermes-skills subtree does not match current standalone main" >&2
+            echo "ERROR: rebuilt history does not match current standalone main" >&2
             echo "=== file-level diff ===" >&2
             diff -qr --exclude=.git "$work/source" "$work/current" || true
             exit 42
