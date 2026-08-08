@@ -69,7 +69,7 @@ def test_v5_gap_exact_manifest_order_passes():
 
 def test_v5_gap_wrong_title_for_same_arxiv_id_fails():
     displays = [
-        "Reliable Post-Retrieval Assembly for Agent Memory: Separating Evidence Extraction from Policy Execution - arXiv:2606.01435: https://arxiv.org/abs/2606.01435"
+        "Don't Ask the LLM to Track Freshness: A Deterministic Recipe for Memory Conflict Resolution - arXiv:2606.01435: https://arxiv.org/abs/2606.01435"
     ]
     gap = """## New research sources used for v5
 1. Different title - arXiv:2606.01435: https://arxiv.org/abs/2606.01435
