@@ -1,102 +1,82 @@
 # Evidence state model
 
-This is a conceptual contract for consequential verification. It is not a requirement to serialize every answer into JSON.
+This is the conceptual contract behind consequential verification. It is not a requirement to serialize every answer into JSON.
 
-The purpose is to prevent invisible state from disappearing between retrieval, judgment and final wording.
+The purpose is to prevent invisible evidence state from disappearing between retrieval, judgment and final wording.
 
 ## ClaimRecord
 
-Minimum conceptual fields:
+Useful conceptual fields:
 
 ```text
 claim_id
-claim_text
+claim
 claim_type
 intent_constraint
 risk_tier
-volatility
-current_state_required
-verification_state
+state
+scope
+observation_time
 residual_unknowns
 ```
 
-### Notes
-
-- `claim_text` should be atomic enough that one evidence verdict can meaningfully apply.
-- `intent_constraint` records which user requirement this claim/action serves. A factually correct claim can still be irrelevant or violate the requested scope.
-- `current_state_required` distinguishes timeless/historical claims from claims that need fresh observation.
-- `residual_unknowns` prevents `SUPPORTED within scope` from silently becoming `universally true`.
+`claim` should be atomic enough that one evidence verdict can meaningfully apply. `intent_constraint` records which user requirement the claim/action serves. `residual_unknowns` prevents `SUPPORTED_WITH_SCOPE` from silently becoming universal truth.
 
 ## EvidenceRecord
 
-For complicated T2 or consequential T3 work, an auditable evidence item can need:
+The machine-readable schema uses these evidence fields:
 
 ```text
-source_uri_or_pointer
+source
 source_class
 source_identity
-source_version_or_date
+evidence_span
 retrieved_at
-freshness_status
-authority_basis
-integrity_status
-lineage_or_origin
+freshness
+integrity
+lineage
 lineage_basis
 lineage_verification
 independence_group
-evidence_span
-entailment_status
-contradiction_status
-scope
-verifier_kind
-verifier_provenance
-verifier_status
-notes
+entailment
+verifier
+verifier_failure_state
 ```
 
-Do not invent values for fields that cannot be established. Use `UNKNOWN` explicitly and downgrade the verdict when an unknown is load-bearing.
+Do not invent values for fields that cannot be established. Use explicit unknown states where available and downgrade the claim when an unknown is load-bearing.
 
-The JSON schema is intentionally a storage/shape contract. `scripts/check_evidence_record.py` adds cross-field invariants that depend on risk tier and claim type.
+The JSON schema is a storage/shape contract. `scripts/check_evidence_record.py` adds cross-field invariants that depend on risk tier and claim type.
 
-## Strong T3 contract
-
-A strong T3 `SUPPORTED_WITH_SCOPE` verdict must not be earned by labels alone.
-
-For supporting evidence, v5.2 requires an auditable source identity, evidence span, retrieval time, verifier provenance and a clean observed verifier state. `source_class=unknown` cannot earn a strong T3 verdict.
-
-If an item is labelled `INDEPENDENT_ORIGIN`, that label alone is not evidence. A strong T3 verdict requires:
+## Claim states
 
 ```text
-lineage = INDEPENDENT_ORIGIN
-lineage_verification = VERIFIED
-lineage_basis = non-empty auditable basis
-```
-
-The deterministic checker can verify that these fields are present and internally consistent. It cannot prove that the asserted provenance is true. That remains an external evidence problem.
-
-For T3 `current_state`, a strong verdict additionally requires:
-
-```text
-observation_time = explicit observation time
-freshness = CURRENT_ENOUGH
-```
-
-A stale or unknown freshness state cannot be promoted to current truth merely because another field says `SUPPORTED_WITH_SCOPE`.
-
-## Evidence states
-
-### Entailment
-
-```text
-SUPPORTS
-CONTRADICTS
+SUPPORTED_WITH_SCOPE
 PARTIAL
-IRRELEVANT
+CONTRADICTED
+CONFLICT
+NOT_FOUND_WITHIN_SCOPE
 INCONCLUSIVE
-NOT_CHECKED
+ERROR
+UNKNOWN_SCOPE
 ```
 
-### Source integrity
+Forbidden collapses include `ERROR -> NOT_FOUND`, scoped absence -> global absence, and `PARTIAL`/`INCONCLUSIVE`/`CONFLICT` -> unsupported certainty.
+
+## Entailment
+
+Executable values:
+
+```text
+ENTAILS
+PARTIAL
+CONTRADICTS
+IRRELEVANT
+UNCLEAR
+```
+
+`ENTAILS` means the recorded evidence item is asserted to support the claim within its inspected scope. The deterministic checker validates the label and cross-field contract. It does not prove the semantic assertion.
+
+## Source integrity
 
 ```text
 CLEAN_OBSERVED
@@ -107,94 +87,118 @@ UNKNOWN
 
 `CLEAN_OBSERVED` means no anomaly was observed in the inspected material. It is deliberately weaker than `TRUSTED`.
 
-### Freshness
+## Freshness
+
+Executable values:
 
 ```text
 CURRENT_ENOUGH
-STALE_FOR_CLAIM
-HISTORICAL_ONLY
+STALE
 UNKNOWN
 NOT_APPLICABLE
 ```
 
-Freshness is relative to the claim. A ten-year-old specification can be current; a ten-minute-old stock price can be stale.
+Freshness is relative to the claim. A ten-year-old specification can be current enough for a stable historical interface; a ten-minute-old market quote can be stale. Historical-only evidence should use `STALE` or `NOT_APPLICABLE` according to claim semantics rather than inventing another machine state.
 
-### Verifier execution
-
-```text
-PASS
-FAIL
-ERROR
-PARTIAL
-UNKNOWN_SCOPE
-```
-
-A verifier `PASS` describes the verifier's contract, not global truth.
-
-## Independence groups
-
-`independence_group` exists to prevent fake source multiplicity.
-
-Examples:
+## Lineage
 
 ```text
-Reuters article -> syndication copy on site A -> snippet on site B
+INDEPENDENT_ORIGIN
+DERIVED_COPY
+SHARED_ORIGIN
+UNKNOWN
 ```
 
-All three may belong to one underlying origin group if B/A merely reproduce Reuters.
+Lineage verification:
 
 ```text
-GitHub README -> blog post quoting README -> LLM answer citing blog
+VERIFIED
+HEURISTIC
+UNKNOWN
 ```
 
-These do not constitute three independent confirmations.
+`independence_group` is a declared grouping label used to catch obvious internal contradictions such as two allegedly independent supporting records reusing the same known origin group.
 
-Strong independence can come from materially different failure domains, for example:
+It is not proof of real-world independence.
 
-- source code inspection + executable runtime observation,
-- official specification + independent conformance test,
-- two primary measurements by separate systems,
-- positive evidence + active falsification via a different mechanism.
-
-Independence remains a provenance judgment. `VERIFIED` means there is an auditable basis for that judgment, not that a string field has magically made two sources independent.
-
-## Source classes
-
-Useful coarse classes:
+Examples of weak independence:
 
 ```text
-LIVE_SYSTEM
-SOURCE_CODE
-OFFICIAL_DOCS
-PRIMARY_RESEARCH
-PRIMARY_DATA
-SECONDARY_REPORTING
-USER_PROVIDED
-MEMORY
-LOG
-SEARCH_SNIPPET
-LLM_GENERATED
-OTHER
+Reuters article -> syndication copy -> search snippet
+GitHub README -> blog quoting README -> LLM answer citing the blog
+same model + same prompt + same evidence repeated five times
 ```
 
-No class is automatically true. The class influences what claims it can reasonably support.
+Stronger independence can come from materially different failure domains such as source inspection plus runtime execution, specification plus independent conformance testing, distinct primary measurements, or positive evidence plus active falsification.
+
+A `VERIFIED` lineage judgment means there is an auditable external basis for the judgment. The checker can require that a basis and group are recorded. It cannot establish that the provenance claim itself is true.
+
+## Verifier failure state
+
+Executable values:
+
+```text
+NONE_OBSERVED
+SUSPECT
+FAILED
+UNKNOWN
+```
+
+This field is **not** the same concept as a verifier command's process outcome. A verifier may exit successfully while its evidentiary relevance remains suspect. Conversely, a verifier execution can fail and be recorded as `FAILED`.
+
+A helper's own `PASS`, `FOUND`, `NOT_FOUND`, `ERROR`, or exit code describes that helper's contract. Do not copy those labels blindly into `verifier_failure_state`.
+
+## Strong T3 contract
+
+A strong T3 `SUPPORTED_WITH_SCOPE` verdict must not be earned by labels alone.
+
+For every supporting `ENTAILS` item, the checker requires:
+
+- known `source_class`;
+- non-empty `source_identity`;
+- non-empty `evidence_span`;
+- RFC3339 `retrieved_at` with timezone;
+- non-empty verifier provenance;
+- `verifier_failure_state=NONE_OBSERVED`.
+
+At least one supporting item must additionally declare:
+
+```text
+lineage = INDEPENDENT_ORIGIN
+lineage_verification = VERIFIED
+lineage_basis = non-empty auditable basis
+independence_group = non-empty origin/failure-domain group
+```
+
+If multiple supporting items claim verified independence, the deterministic checker rejects duplicate non-empty `independence_group` labels. This catches an internal contradiction in the submitted record. Distinct strings still do not prove external independence.
+
+For T3 `current_state`, a strong verdict additionally requires:
+
+```text
+observation_time = RFC3339 timestamp with timezone, not materially in the future
+freshness = CURRENT_ENOUGH
+```
+
+Supporting `retrieved_at` timestamps must also be RFC3339 and not materially in the future.
+
+A stale or unknown freshness state cannot be promoted to current truth merely because the top-level state says `SUPPORTED_WITH_SCOPE`.
 
 ## Claim-state aggregation
 
-A claim may be `SUPPORTED_WITH_SCOPE` only when all load-bearing requirements are satisfied within a declared scope.
-
-A conservative aggregation sketch:
+A conservative sketch:
 
 ```text
-if any decisive evidence CONTRADICTS and conflict is unresolved:
+if required verification fails:
+    claim = ERROR or INCONCLUSIVE
+elif supporting and contradicting evidence remain unresolved:
     claim = CONFLICT
-elif verifier execution ERROR/PARTIAL prevents required coverage:
-    claim = INCONCLUSIVE or UNKNOWN_SCOPE
-elif required current-state evidence is STALE/UNKNOWN:
+elif decisive evidence contradicts and no material support survives:
+    claim = CONTRADICTED
+elif required current-state evidence is stale/unknown:
     claim = INCONCLUSIVE
-elif evidence is topically relevant but entailment is PARTIAL:
+elif evidence only partially supports the claim:
     claim = PARTIAL
-elif sufficient evidence SUPPORTS, coverage is adequate, and no unresolved contradiction remains:
+elif sufficient evidence entails the claim within an explicit scope and no unresolved contradiction remains:
     claim = SUPPORTED_WITH_SCOPE
 else:
     claim = INCONCLUSIVE
@@ -204,7 +208,7 @@ Do not add numerical confidence unless there is a calibrated basis for it.
 
 ## Intent state
 
-Fact checking is not enough. Record whether the output/action satisfies the user's actual request:
+When useful:
 
 ```text
 ALIGNED
@@ -214,14 +218,11 @@ OUT_OF_SCOPE
 AMBIGUOUS
 ```
 
-A response can be `factually supported + intent misinterpreted` and should still be considered a failed answer.
-
-This is motivated by FAITHQA / intent hallucination research:
-https://aclanthology.org/2025.acl-long.349/
+A response can be factually supported and still fail because it answered the wrong request.
 
 ## Trajectory state
 
-For multi-step agents, a later correct-looking action can descend from an earlier bad premise. For consequential loops, track the earliest known divergence class:
+For consequential multi-step agents, useful earliest-divergence classes are:
 
 ```text
 PLANNING
@@ -232,13 +233,10 @@ TOOL_USE
 UNKNOWN
 ```
 
-This taxonomy is informed by AgentHallu (arXiv:2601.06818):
-https://arxiv.org/abs/2601.06818
+The purpose is not perfect step attribution. It is to force inspection of upstream dependencies before patching only the final sentence.
 
-The protocol does not claim perfect step attribution. The purpose is to force the agent to inspect upstream dependencies rather than patch only the final sentence.
+## Why not require every field always?
 
-## Why not require all fields always?
+Because that would make the protocol unusable.
 
-Because that would make the skill unusable.
-
-Use the full state model for T3 or complicated T2 claims. For low-risk claims, keep only fields needed to prevent the likely failure. This selective use is a **HEURISTIC** consistent with the adaptive verification budget.
+Use the full record for T3 or complicated T2 work. For lower-risk claims, keep only the state needed to prevent the likely failure. This is an adaptive verification heuristic, not a claim that missing fields are universally safe.
