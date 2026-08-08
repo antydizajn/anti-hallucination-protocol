@@ -25,17 +25,25 @@ def write_minimal_tree(tmp_path: Path, skill_text: str) -> Path:
     return root
 
 
-def valid_skill() -> str:
+def valid_skill(version: str = mod.EXPECTED_VERSION) -> str:
     states = "\n".join(mod.REQUIRED_STATES)
-    refs = "\n".join(
-        [
-            "references/research-foundations.md",
-            "references/v5-gap-map.md",
-            "references/evidence-state-model.md",
-            "references/untrusted-evidence-boundary.md",
-        ]
-    )
-    return f"version: 5.0.0\n{states}\n{refs}\n"
+    refs = "\n".join(mod.ACTIVE_REFERENCES)
+    return f'''---
+name: anti-hallucination-protocol
+description: Test fixture
+version: {version}
+author: "Paulina Janowska & Gniewisława AI"
+license: MIT
+platforms: [linux, macos, windows]
+metadata:
+  hermes:
+    tags: [verification]
+    category: software-development
+---
+
+{states}
+{refs}
+'''
 
 
 def test_happy_path(tmp_path):
@@ -43,10 +51,10 @@ def test_happy_path(tmp_path):
     assert mod.validate(root) == []
 
 
-def test_wrong_version_fails(tmp_path):
-    root = write_minimal_tree(tmp_path, valid_skill().replace("5.0.0", "4.0.0"))
+def test_wrong_frontmatter_version_fails(tmp_path):
+    root = write_minimal_tree(tmp_path, valid_skill("4.0.0"))
     errors = mod.validate(root)
-    assert any("does not declare version 5.0.0" in e for e in errors)
+    assert any("frontmatter version" in e for e in errors)
 
 
 def test_missing_required_file_fails(tmp_path):
@@ -75,3 +83,43 @@ def test_dead_backtick_path_fails(tmp_path):
     root = write_minimal_tree(tmp_path, valid_skill() + "`references/ghost.md`\n")
     errors = mod.validate(root)
     assert any("references missing local path: references/ghost.md" in e for e in errors)
+
+
+# Regression probes from GPT-5.6 Terra's forensic audit.
+
+def test_no_frontmatter_fails_even_if_body_contains_version_string(tmp_path):
+    fake = "version: 5.1.0\n" + "\n".join(mod.REQUIRED_STATES + mod.ACTIVE_REFERENCES)
+    root = write_minimal_tree(tmp_path, fake)
+    errors = mod.validate(root)
+    assert any("must begin with YAML frontmatter" in e for e in errors)
+
+
+def test_body_version_cannot_mask_wrong_frontmatter_version(tmp_path):
+    fake = valid_skill("4.0.0") + "\nversion: 5.1.0\n"
+    root = write_minimal_tree(tmp_path, fake)
+    errors = mod.validate(root)
+    assert any("frontmatter version" in e for e in errors)
+
+
+def test_unclosed_frontmatter_fails(tmp_path):
+    fake = valid_skill().replace("\n---\n\n", "\n", 1)
+    root = write_minimal_tree(tmp_path, fake)
+    errors = mod.validate(root)
+    assert any("no closing" in e for e in errors)
+
+
+def test_malformed_top_level_yaml_line_fails(tmp_path):
+    fake = valid_skill().replace(
+        "description: Test fixture",
+        "description: Test fixture\nTHIS IS NOT YAML",
+    )
+    root = write_minimal_tree(tmp_path, fake)
+    errors = mod.validate(root)
+    assert any("malformed top-level YAML mapping" in e for e in errors)
+
+
+def test_missing_required_frontmatter_key_fails(tmp_path):
+    fake = valid_skill().replace("license: MIT\n", "")
+    root = write_minimal_tree(tmp_path, fake)
+    errors = mod.validate(root)
+    assert any("frontmatter missing required key: license" in e for e in errors)
