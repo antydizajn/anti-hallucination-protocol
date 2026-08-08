@@ -19,28 +19,54 @@ def ev(
     entailment="ENTAILS",
     integrity="CLEAN_OBSERVED",
     lineage="INDEPENDENT_ORIGIN",
+    lineage_verification="VERIFIED",
+    lineage_basis="independent primary observation",
+    source="primary-source",
+    source_class="primary",
+    source_identity="canonical source identity",
+    evidence_span="claim-matched span",
+    retrieved_at="2026-08-08T17:00:00+02:00",
+    freshness="CURRENT_ENOUGH",
+    verifier="deterministic-or-explicit-verifier",
     verifier_failure_state="NONE_OBSERVED",
 ):
     return {
-        "source": "primary-source",
-        "source_class": "primary",
-        "entailment": entailment,
+        "source": source,
+        "source_class": source_class,
+        "source_identity": source_identity,
+        "evidence_span": evidence_span,
+        "retrieved_at": retrieved_at,
+        "freshness": freshness,
         "integrity": integrity,
         "lineage": lineage,
+        "lineage_basis": lineage_basis,
+        "lineage_verification": lineage_verification,
+        "entailment": entailment,
+        "verifier": verifier,
         "verifier_failure_state": verifier_failure_state,
     }
 
 
-def rec(state="SUPPORTED_WITH_SCOPE", risk="T2", evidence=None, scope="checked source"):
-    return {
+def rec(
+    state="SUPPORTED_WITH_SCOPE",
+    risk="T2",
+    claim_type="other",
+    evidence=None,
+    scope="checked source",
+    observation_time=None,
+):
+    result = {
         "claim_id": "c1",
         "claim": "X",
-        "claim_type": "other",
+        "claim_type": claim_type,
         "risk_tier": risk,
         "state": state,
         "scope": scope,
         "evidence": evidence or [ev()],
     }
+    if observation_time is not None:
+        result["observation_time"] = observation_time
+    return result
 
 
 def test_happy_path():
@@ -96,27 +122,119 @@ def test_t3_shared_origin_is_not_independence():
     errors = mod.validate(
         rec(risk="T3", evidence=[ev(lineage="SHARED_ORIGIN"), ev(lineage="DERIVED_COPY")])
     )
-    assert any("no supporting evidence marked as an independent origin" in e for e in errors)
+    assert any("requires an INDEPENDENT_ORIGIN" in e for e in errors)
 
 
 def test_t3_unknown_lineage_cannot_be_promoted_to_independent():
     errors = mod.validate(rec(risk="T3", evidence=[ev(lineage="UNKNOWN")]))
-    assert any("no supporting evidence marked as an independent origin" in e for e in errors)
+    assert any("requires an INDEPENDENT_ORIGIN" in e for e in errors)
 
 
-def test_t3_mixed_unknown_and_shared_lineage_still_lacks_independence():
+def test_t3_self_declared_independence_without_basis_fails():
     errors = mod.validate(
-        rec(risk="T3", evidence=[ev(lineage="UNKNOWN"), ev(lineage="SHARED_ORIGIN")])
+        rec(
+            risk="T3",
+            evidence=[ev(lineage="INDEPENDENT_ORIGIN", lineage_basis=None)],
+        )
     )
-    assert any("no supporting evidence marked as an independent origin" in e for e in errors)
+    assert any("non-empty lineage_basis" in e for e in errors)
 
 
-def test_one_independent_origin_is_allowed_without_fake_source_count_rule():
-    assert mod.validate(rec(risk="T3", evidence=[ev(lineage="INDEPENDENT_ORIGIN")])) == []
+def test_t3_heuristic_independence_cannot_earn_strong_state():
+    errors = mod.validate(
+        rec(
+            risk="T3",
+            evidence=[ev(lineage="INDEPENDENT_ORIGIN", lineage_verification="HEURISTIC")],
+        )
+    )
+    assert any("VERIFIED lineage" in e for e in errors)
 
 
-# Regression probes from the 2026-08-08 three-agent forensic audit.
-# These specifically target prior false-PASS behavior.
+def test_t3_unknown_source_class_cannot_earn_strong_state():
+    errors = mod.validate(rec(risk="T3", evidence=[ev(source_class="unknown")]))
+    assert any("source_class=unknown" in e for e in errors)
+
+
+def test_t3_requires_source_identity():
+    errors = mod.validate(rec(risk="T3", evidence=[ev(source_identity=None)]))
+    assert any("requires source_identity" in e for e in errors)
+
+
+def test_t3_requires_evidence_span():
+    errors = mod.validate(rec(risk="T3", evidence=[ev(evidence_span=None)]))
+    assert any("requires evidence_span" in e for e in errors)
+
+
+def test_t3_requires_retrieved_at():
+    errors = mod.validate(rec(risk="T3", evidence=[ev(retrieved_at=None)]))
+    assert any("requires retrieved_at" in e for e in errors)
+
+
+def test_t3_requires_verifier_provenance():
+    errors = mod.validate(rec(risk="T3", evidence=[ev(verifier=None)]))
+    assert any("requires verifier provenance" in e for e in errors)
+
+
+def test_t3_requires_clean_verifier_state_for_supporting_evidence():
+    errors = mod.validate(rec(risk="T3", evidence=[ev(verifier_failure_state="UNKNOWN")]))
+    assert any("requires verifier_failure_state=NONE_OBSERVED" in e for e in errors)
+
+
+def test_t3_current_state_requires_observation_time():
+    errors = mod.validate(rec(risk="T3", claim_type="current_state"))
+    assert any("requires observation_time" in e for e in errors)
+
+
+def test_t3_current_state_requires_current_enough_evidence():
+    errors = mod.validate(
+        rec(
+            risk="T3",
+            claim_type="current_state",
+            observation_time="2026-08-08T17:00:00+02:00",
+            evidence=[ev(freshness="UNKNOWN")],
+        )
+    )
+    assert any("freshness=CURRENT_ENOUGH" in e for e in errors)
+
+
+def test_t3_current_state_full_auditable_record_passes_contract():
+    r = rec(
+        risk="T3",
+        claim_type="current_state",
+        observation_time="2026-08-08T17:00:00+02:00",
+        evidence=[ev()],
+    )
+    assert mod.validate(r) == []
+
+
+def test_terra_opaque_current_state_false_pass_is_closed():
+    bad = rec(
+        risk="T3",
+        claim_type="current_state",
+        evidence=[
+            ev(
+                source="opaque-string",
+                source_class="unknown",
+                source_identity=None,
+                evidence_span=None,
+                retrieved_at=None,
+                freshness="UNKNOWN",
+                lineage="INDEPENDENT_ORIGIN",
+                lineage_basis=None,
+                lineage_verification="UNKNOWN",
+                verifier=None,
+                verifier_failure_state="UNKNOWN",
+            )
+        ],
+    )
+    errors = mod.validate(bad)
+    assert errors
+    assert any("observation_time" in e for e in errors)
+    assert any("source_class=unknown" in e for e in errors)
+    assert any("lineage_basis" in e for e in errors)
+
+
+# Regression probes from the 2026-08-08 multi-agent forensic audits.
 
 def test_incomplete_t3_record_cannot_pass_schema_gate():
     bad = {
@@ -161,6 +279,13 @@ def test_unknown_integrity_is_rejected():
 def test_unknown_lineage_is_rejected():
     bad = rec(evidence=[ev()])
     bad["evidence"][0]["lineage"] = "FIVE_AGENTS_AGREE"
+    errors = mod.validate(bad)
+    assert any("allowed enum" in e for e in errors)
+
+
+def test_unknown_lineage_verification_is_rejected():
+    bad = rec(evidence=[ev()])
+    bad["evidence"][0]["lineage_verification"] = "FIVE_AGENTS_AGREE"
     errors = mod.validate(bad)
     assert any("allowed enum" in e for e in errors)
 
