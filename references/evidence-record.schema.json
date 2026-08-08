@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://antydizajn.local/hermes/anti-hallucination/evidence-record.schema.json",
+  "title": "Anti-Hallucination v5 Evidence Record",
+  "description": "Optional machine-readable record for consequential T2/T3 verification. It records auditable evidence state, not hidden reasoning.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "claim_id",
+    "claim",
+    "claim_type",
+    "risk_tier",
+    "state",
+    "evidence"
+  ],
+  "properties": {
+    "claim_id": {"type": "string", "minLength": 1},
+    "claim": {"type": "string", "minLength": 1},
+    "intent_constraint": {"type": ["string", "null"]},
+    "claim_type": {
+      "type": "string",
+      "enum": ["stable_fact", "current_state", "code", "api", "numerical", "temporal", "entity", "quote", "citation", "research", "security", "legal", "other"]
+    },
+    "risk_tier": {"type": "string", "enum": ["T0", "T1", "T2", "T3"]},
+    "state": {
+      "type": "string",
+      "enum": ["SUPPORTED_WITH_SCOPE", "PARTIAL", "CONTRADICTED", "CONFLICT", "NOT_FOUND_WITHIN_SCOPE", "INCONCLUSIVE", "ERROR", "UNKNOWN_SCOPE"]
+    },
+    "scope": {"type": ["string", "null"]},
+    "observation_time": {"type": ["string", "null"]},
+    "residual_unknowns": {
+      "type": "array",
+      "items": {"type": "string"}
+    },
+    "evidence": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["source", "source_class", "entailment", "integrity", "lineage"],
+        "properties": {
+          "source": {"type": "string", "minLength": 1},
+          "source_class": {
+            "type": "string",
+            "enum": ["primary", "secondary", "runtime", "repository", "memory", "user_provided", "tool_output", "unknown"]
+          },
+          "evidence_span": {"type": ["string", "null"]},
+          "retrieved_at": {"type": ["string", "null"]},
+          "freshness": {"type": "string", "enum": ["CURRENT_ENOUGH", "STALE", "UNKNOWN", "NOT_APPLICABLE"]},
+          "integrity": {"type": "string", "enum": ["CLEAN_OBSERVED", "SUSPECT", "CONTAMINATED", "UNKNOWN"]},
+          "lineage": {"type": "string", "enum": ["INDEPENDENT_ORIGIN", "DERIVED_COPY", "SHARED_ORIGIN", "UNKNOWN"]},
+          "entailment": {"type": "string", "enum": ["ENTAILS", "PARTIAL", "CONTRADICTS", "IRRELEVANT", "UNCLEAR"]},
+          "verifier": {"type": ["string", "null"]},
+          "verifier_failure_state": {"type": "string", "enum": ["NONE_OBSERVED", "SUSPECT", "FAILED", "UNKNOWN"]}
+        }
+      }
+    }
+  }
+}
