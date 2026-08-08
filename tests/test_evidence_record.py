@@ -112,6 +112,68 @@ def test_t3_mixed_unknown_and_shared_lineage_still_lacks_independence():
 
 
 def test_one_independent_origin_is_allowed_without_fake_source_count_rule():
-    # The protocol may still require an explicit single-source limitation in prose,
-    # but the deterministic checker does not invent a universal two-source rule.
     assert mod.validate(rec(risk="T3", evidence=[ev(lineage="INDEPENDENT_ORIGIN")])) == []
+
+
+# Regression probes from the 2026-08-08 three-agent forensic audit.
+# These specifically target prior false-PASS behavior.
+
+def test_incomplete_t3_record_cannot_pass_schema_gate():
+    bad = {
+        "state": "SUPPORTED_WITH_SCOPE",
+        "risk_tier": "T3",
+        "scope": "unattributed scope",
+        "evidence": [{"entailment": "ENTAILS", "lineage": "INDEPENDENT_ORIGIN"}],
+    }
+    errors = mod.validate(bad)
+    assert errors
+    assert any("missing required field" in e for e in errors)
+
+
+def test_unknown_state_is_rejected():
+    bad = rec()
+    bad["state"] = "TOTALLY_UNKNOWN_STATE"
+    errors = mod.validate(bad)
+    assert any("allowed enum" in e for e in errors)
+
+
+def test_unknown_risk_tier_is_rejected():
+    bad = rec()
+    bad["risk_tier"] = "T9000"
+    errors = mod.validate(bad)
+    assert any("allowed enum" in e for e in errors)
+
+
+def test_unknown_entailment_is_rejected():
+    bad = rec(evidence=[ev()])
+    bad["evidence"][0]["entailment"] = "TRUST_ME_BRO"
+    errors = mod.validate(bad)
+    assert any("allowed enum" in e for e in errors)
+
+
+def test_unknown_integrity_is_rejected():
+    bad = rec(evidence=[ev()])
+    bad["evidence"][0]["integrity"] = "TOTALLY_FINE_PROBABLY"
+    errors = mod.validate(bad)
+    assert any("allowed enum" in e for e in errors)
+
+
+def test_unknown_lineage_is_rejected():
+    bad = rec(evidence=[ev()])
+    bad["evidence"][0]["lineage"] = "FIVE_AGENTS_AGREE"
+    errors = mod.validate(bad)
+    assert any("allowed enum" in e for e in errors)
+
+
+def test_non_object_evidence_item_is_rejected_without_crash():
+    bad = rec(evidence=["not-an-evidence-object"])
+    errors = mod.validate(bad)
+    assert errors
+    assert any("expected type object" in e for e in errors)
+
+
+def test_additional_properties_are_rejected():
+    bad = rec()
+    bad["evidence"][0]["confidence_the_model_felt"] = 0.999
+    errors = mod.validate(bad)
+    assert any("additional property" in e for e in errors)
