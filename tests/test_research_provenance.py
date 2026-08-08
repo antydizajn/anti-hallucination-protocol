@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import sys
 from pathlib import Path
 
@@ -80,10 +81,59 @@ def test_foundations_must_contain_exact_manifest_reference_once():
     assert any("expected 1" in e for e in duplicate)
 
 
-def test_happy_path_for_one_entry():
+def test_happy_path_for_one_v4_entry():
     p = paper("2305.14251", "Canonical Title")
     skill = "[Canonical Title - arXiv:2305.14251](https://arxiv.org/abs/2305.14251)"
     foundations = "[2305.14251](https://arxiv.org/abs/2305.14251)"
     assert mod.validate_manifest([p], minimum=1) == []
     assert mod.compare_skill_to_manifest([p], skill) == []
     assert mod.compare_foundations_to_manifest([p], foundations) == []
+
+
+def test_v5_gap_exact_manifest_order_passes():
+    displays = [
+        "Source A - arXiv:1111.11111: https://arxiv.org/abs/1111.11111",
+        "Source B: https://example.com/b",
+    ]
+    gap = """# x
+## New research sources used for v5
+
+1. Source A - arXiv:1111.11111: https://arxiv.org/abs/1111.11111
+2. Source B: https://example.com/b
+
+## What v5 must NOT claim
+"""
+    assert mod.compare_v5_gap_to_manifest(displays, gap) == []
+
+
+def test_v5_gap_wrong_title_for_same_arxiv_id_fails():
+    displays = [
+        "Reliable Post-Retrieval Assembly for Agent Memory: Separating Evidence Extraction from Policy Execution - arXiv:2606.01435: https://arxiv.org/abs/2606.01435"
+    ]
+    gap = """## New research sources used for v5
+1. Don't Ask the LLM to Track Freshness: A Deterministic Recipe for Memory Conflict Resolution - arXiv:2606.01435: https://arxiv.org/abs/2606.01435
+## What v5 must NOT claim
+"""
+    errors = mod.compare_v5_gap_to_manifest(displays, gap)
+    assert any("v5 research source #1 mismatch" in e for e in errors)
+
+
+def test_v5_gap_missing_source_fails():
+    displays = ["A: https://example.com/a", "B: https://example.com/b"]
+    gap = """## New research sources used for v5
+1. A: https://example.com/a
+## What v5 must NOT claim
+"""
+    errors = mod.compare_v5_gap_to_manifest(displays, gap)
+    assert errors
+
+
+def test_v5_manifest_loader_rejects_missing_display(tmp_path: Path):
+    path = tmp_path / "manifest.json"
+    path.write_text(json.dumps({"sources": [{"url": "https://example.com"}]}), encoding="utf-8")
+    try:
+        mod.load_v5_manifest(path)
+    except ValueError as exc:
+        assert "display" in str(exc)
+    else:
+        raise AssertionError("invalid v5 manifest should fail")
