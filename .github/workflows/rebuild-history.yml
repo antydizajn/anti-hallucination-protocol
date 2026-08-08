@@ -6,6 +6,11 @@ on:
       - history-migration-run
     paths:
       - .github/workflows/rebuild-history.yml
+  pull_request:
+    branches:
+      - main
+    paths:
+      - .github/workflows/rebuild-history.yml
 
 permissions:
   contents: write
@@ -40,7 +45,9 @@ jobs:
           echo "=== filtered history ==="
           git log --reverse --format='%H %aI %an <%ae> %s'
 
-          first_version="$(git show "$(git rev-list --max-parents=0 HEAD)":SKILL.md | sed -n 's/^version:[[:space:]]*//p' | head -1)"
+          root_commit="$(git rev-list --max-parents=0 HEAD)"
+          first_version="$(git show "$root_commit":SKILL.md | sed -n 's/^version:[[:space:]]*//p' | head -1)"
+          echo "root_commit=$root_commit"
           echo "first filtered version=$first_version"
           test "$first_version" = "2.0.0"
 
@@ -51,8 +58,8 @@ jobs:
 
           if [ "$source_tree" != "$current_tree" ]; then
             echo "ERROR: filtered hermes-skills subtree does not match current standalone main" >&2
-            echo "=== tree diff ===" >&2
-            git diff --no-index -- "$work/source" "$work/current" ':!*/.git/*' || true
+            echo "=== name/status diff ===" >&2
+            git --no-pager diff --no-index --name-status "$work/source" "$work/current" || true
             exit 42
           fi
 
@@ -61,5 +68,3 @@ jobs:
           git push --force standalone HEAD:refs/heads/history-rebuilt
 
           echo "history-rebuilt pushed successfully"
-
-          # Trigger marker: workflow already existed before this push.
