@@ -1,118 +1,182 @@
 #!/usr/bin/env bash
-# godmode_battery.sh -- run the adversarial corpus end-to-end as a self-test.
+# godmode_battery.sh - LEGACY installation-specific diagnostic.
 #
-# This is the "on demand" version of the daily cron self-audit. Use when the user
-# asks "does anti-halluc actually work" / "test yourself" / "godmode self-check",
-# or anytime you want a fresh empirical reading on the protocol's effectiveness
-# before making a high-stakes claim.
+# This script is retained for existing installations that still have the old
+# ~/.hermes/scripts/anti_halluc corpus + hard_assert.py stack. It is NOT part of
+# the portable v5.3 correctness/liveness contract.
 #
-# Each probe is run through hard_assert.py (the cheapest layer) and logged into
-# calibration.jsonl with the model's a priori P(true). Score is printed at the end.
-#
-# Output:
-#   - line per probe: PROBE_ID  expected  result  verdict
-#   - summary: N_correct / N_total, % correct, false claims highlighted
-#   - calibration.jsonl gains N new entries
-#
-# This is NOT a full v3 orchestrator run -- it exercises L1 (verify_claim/hard_assert)
-# and L3 (calibration log feed), not the full multi-judge ensemble. For that use
-# eval_pipeline.sh in v3/.
+# Safety changes in v5.3:
+#   - read-only by default;
+#   - no implicit calibration.jsonl append;
+#   - prints attempted/skipped/errors separately;
+#   - false probes or execution errors produce non-zero exit status;
+#   - optional logging requires an explicit --calibration-log PATH.
 
 set -uo pipefail
 
 DIR="$HOME/.hermes/scripts/anti_halluc"
 CORPUS="$DIR/adversarial_corpus.json"
-CALIB_LOG="$DIR/calibration.jsonl"
+CALIB_LOG=""
 
-if [ ! -f "$CORPUS" ]; then
-    echo "FAIL: adversarial_corpus.json missing at $CORPUS"
-    exit 1
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --dir)
+            [[ $# -ge 2 ]] || { echo "ERROR: --dir requires a path" >&2; exit 2; }
+            DIR="$2"; CORPUS="$DIR/adversarial_corpus.json"; shift 2 ;;
+        --corpus)
+            [[ $# -ge 2 ]] || { echo "ERROR: --corpus requires a path" >&2; exit 2; }
+            CORPUS="$2"; shift 2 ;;
+        --calibration-log)
+            [[ $# -ge 2 ]] || { echo "ERROR: --calibration-log requires a path" >&2; exit 2; }
+            CALIB_LOG="$2"; shift 2 ;;
+        -h|--help)
+            cat <<'EOF'
+Usage: godmode_battery.sh [--dir PATH] [--corpus FILE] [--calibration-log FILE]
+
+Read-only by default. --calibration-log explicitly opts into writing one
+summary record after a run with zero execution errors.
+EOF
+            exit 0 ;;
+        *) echo "ERROR: unknown argument: $1" >&2; exit 2 ;;
+    esac
+done
+
+if [[ ! -f "$CORPUS" ]]; then
+    echo "FAIL: adversarial corpus missing at $CORPUS" >&2
+    exit 2
 fi
 
-echo "==== GODMODE adversarial battery -- $(date '+%Y-%m-%d %H:%M:%S %Z') ===="
+export AHP_LEGACY_DIR="$DIR"
+export AHP_LEGACY_CORPUS="$CORPUS"
+export AHP_LEGACY_CALIB_LOG="$CALIB_LOG"
+
+echo "==== LEGACY adversarial battery - $(date '+%Y-%m-%d %H:%M:%S %Z') ===="
 echo "corpus: $CORPUS"
-echo ""
+[[ -n "$CALIB_LOG" ]] && echo "explicit calibration log: $CALIB_LOG" || echo "calibration log: disabled (read-only mode)"
+echo
 
 python3 - <<'PY'
-import json, sys, subprocess, os, time
+import datetime
+import json
+import os
+import sys
 from pathlib import Path
 
-DIR = Path(os.environ["HOME"]) / ".hermes/scripts/anti_halluc"
-corpus = json.loads((DIR / "adversarial_corpus.json").read_text())
-calib_log = DIR / "calibration.jsonl"
+base = Path(os.environ["AHP_LEGACY_DIR"])
+corpus_path = Path(os.environ["AHP_LEGACY_CORPUS"])
+calib_raw = os.environ.get("AHP_LEGACY_CALIB_LOG", "")
+calib_log = Path(calib_raw) if calib_raw else None
 
-sys.path.insert(0, str(DIR))
+try:
+    corpus = json.loads(corpus_path.read_text(encoding="utf-8"))
+except Exception as exc:
+    print(f"ERROR: cannot load corpus: {exc}", file=sys.stderr)
+    raise SystemExit(2)
+
+sys.path.insert(0, str(base))
 try:
     import hard_assert as ha
-except Exception as e:
-    print(f"FAIL: cannot import hard_assert: {e}")
-    sys.exit(1)
+except Exception as exc:
+    print(f"ERROR: cannot import hard_assert: {exc}", file=sys.stderr)
+    raise SystemExit(2)
+
+probes = corpus.get("probes", corpus) if isinstance(corpus, dict) else corpus
+if not isinstance(probes, list):
+    print("ERROR: corpus must be a list or an object containing list field 'probes'", file=sys.stderr)
+    raise SystemExit(2)
 
 correct = 0
-total = 0
+attempted = 0
+skipped = 0
+errors = 0
 falses = []
 
-# Corpus shape varies; accept either {"probes":[...]}  or a flat list.
-probes = corpus.get("probes", corpus) if isinstance(corpus, dict) else corpus
-
 for p in probes:
-    pid = p.get("id", p.get("name", "?"))
+    if not isinstance(p, dict):
+        errors += 1
+        print("  ?  ERR: probe is not an object")
+        continue
+
+    pid = str(p.get("id", p.get("name", "?")))
     kind = p.get("class") or p.get("kind") or "unknown"
     target = p.get("target") or p.get("query") or p.get("input") or ""
     expected = p.get("expected", p.get("ground_truth", "?"))
-
-    # Heuristic dispatch -- only run the cheap deterministic classes here.
     verdict = "SKIP"
     actual = "n/a"
-    if kind in ("arxiv_id_lookup", "arxiv_id_nonexistent"):
-        try:
+
+    try:
+        if kind in ("arxiv_id_lookup", "arxiv_id_nonexistent"):
+            attempted += 1
             r = ha.check_arxiv(target)
             actual = r.get("status", "?")
-            if (expected == "exists" and actual == "ok") or \
-               (expected == "nonexistent" and actual != "ok"):
+            ok = (expected == "exists" and actual == "ok") or (
+                expected == "nonexistent" and actual != "ok"
+            )
+            if ok:
                 verdict = "PASS"; correct += 1
             else:
                 verdict = "FAIL"; falses.append((pid, target, expected, actual))
-            total += 1
-        except Exception as e:
-            verdict = f"ERR:{e}"
-    elif kind == "path_exists":
-        try:
+        elif kind == "path_exists":
+            attempted += 1
             r = ha.check_path(target)
             actual = r.get("status", "?")
-            ok = (expected == "exists" and actual == "ok") or \
-                 (expected == "nonexistent" and actual != "ok")
-            verdict = "PASS" if ok else "FAIL"
-            if ok: correct += 1
-            else: falses.append((pid, target, expected, actual))
-            total += 1
-        except Exception as e:
-            verdict = f"ERR:{e}"
-    # other classes (vision_confab, library_api, etc.) need richer harness -- skip here
+            ok = (expected == "exists" and actual == "ok") or (
+                expected == "nonexistent" and actual != "ok"
+            )
+            if ok:
+                verdict = "PASS"; correct += 1
+            else:
+                verdict = "FAIL"; falses.append((pid, target, expected, actual))
+        else:
+            skipped += 1
+    except Exception as exc:
+        errors += 1
+        verdict = f"ERR:{exc}"
 
-    print(f"  {pid:24s}  kind={kind:24s}  expected={str(expected):14s}  actual={str(actual):12s}  {verdict}")
+    print(
+        f"  {pid:24s} kind={str(kind):24s} expected={str(expected):14s} "
+        f"actual={str(actual):12s} {verdict}"
+    )
 
-print("")
-print(f"==== SUMMARY: {correct}/{total} correct ({100*correct/max(total,1):.1f}%) ====")
+print()
+rate = 100 * correct / max(attempted, 1)
+print(
+    f"==== SUMMARY: attempted={attempted} correct={correct} "
+    f"failed={len(falses)} skipped={skipped} errors={errors} "
+    f"attempted_accuracy={rate:.1f}% ===="
+)
 if falses:
     print("FALSE CLAIMS:")
-    for f in falses:
-        print(f"  {f}")
+    for item in falses:
+        print(f"  {item}")
 
-# Append a single summary line to calibration log so the battery shows up in the trail
-import datetime
-entry = {
-    "ts": datetime.datetime.now().isoformat(),
-    "source": "godmode_battery",
-    "claim": f"adversarial battery {correct}/{total} correct",
-    "predicted_p": correct / max(total, 1),
-    "outcome": None,  # batter is its own evidence
-    "n_probes": total,
-}
-with open(calib_log, "a") as f:
-    f.write(json.dumps(entry) + "\n")
-print(f"appended summary to {calib_log}")
+if calib_log is not None:
+    if errors:
+        print("NOT WRITING calibration log because execution errors occurred", file=sys.stderr)
+    else:
+        entry = {
+            "ts": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            "source": "legacy_godmode_battery",
+            "claim": f"legacy supported-subset battery {correct}/{attempted} correct",
+            "attempted": attempted,
+            "correct": correct,
+            "failed": len(falses),
+            "skipped": skipped,
+            "errors": errors,
+        }
+        calib_log.parent.mkdir(parents=True, exist_ok=True)
+        with calib_log.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(entry) + "\n")
+        print(f"appended explicit summary to {calib_log}")
+
+if errors:
+    raise SystemExit(2)
+if falses:
+    raise SystemExit(1)
+raise SystemExit(0)
 PY
+status=$?
 
-echo ""
-echo "==== end battery ===="
+echo
+echo "==== end legacy battery (exit=$status) ===="
+exit "$status"
