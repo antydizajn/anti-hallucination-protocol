@@ -1,0 +1,63 @@
+name: Rebuild AHP history
+
+on:
+  push:
+    branches:
+      - history-migration-run
+    paths:
+      - .github/workflows/rebuild-history.yml
+
+permissions:
+  contents: write
+
+jobs:
+  rebuild:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install git-filter-repo
+        run: python3 -m pip install --disable-pip-version-check git-filter-repo
+
+      - name: Rebuild subtree history and verify final tree
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          git config --global user.name "AHP history migration"
+          git config --global user.email "actions@users.noreply.github.com"
+
+          work="$(mktemp -d)"
+          echo "workdir=$work"
+
+          git clone https://github.com/antydizajn/hermes-skills.git "$work/source"
+          git clone --branch main https://x-access-token:${GH_TOKEN}@github.com/antydizajn/anti-hallucination-protocol.git "$work/current"
+
+          cd "$work/source"
+          git filter-repo --force \
+            --path software-development/anti-hallucination-protocol/ \
+            --path-rename software-development/anti-hallucination-protocol/:
+
+          echo "=== filtered history ==="
+          git log --reverse --format='%H %aI %an <%ae> %s'
+
+          first_version="$(git show "$(git rev-list --max-parents=0 HEAD)":SKILL.md | sed -n 's/^version:[[:space:]]*//p' | head -1)"
+          echo "first filtered version=$first_version"
+          test "$first_version" = "2.0.0"
+
+          source_tree="$(git rev-parse HEAD^{tree})"
+          current_tree="$(git -C "$work/current" rev-parse HEAD^{tree})"
+          echo "filtered_source_tree=$source_tree"
+          echo "standalone_main_tree=$current_tree"
+
+          if [ "$source_tree" != "$current_tree" ]; then
+            echo "ERROR: filtered hermes-skills subtree does not match current standalone main" >&2
+            echo "=== tree diff ===" >&2
+            git diff --no-index -- "$work/source" "$work/current" ':!*/.git/*' || true
+            exit 42
+          fi
+
+          echo "Final trees are identical. Publishing candidate history branch only."
+          git remote add standalone "https://x-access-token:${GH_TOKEN}@github.com/antydizajn/anti-hallucination-protocol.git"
+          git push --force standalone HEAD:refs/heads/history-rebuilt
+
+          echo "history-rebuilt pushed successfully"
