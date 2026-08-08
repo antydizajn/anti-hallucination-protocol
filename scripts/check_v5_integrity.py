@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
-"""Repository-local integrity checker for Anti-Hallucination Protocol v5.x.
+"""Repository-local integrity checker for Anti-Hallucination Protocol v5.4.
 
 Frontmatter acceptance is intentionally based on a real YAML parse, not a
 home-grown approximation. This prevents the integrity checker from certifying
 frontmatter that Hermes/PyYAML would reject or interpret differently.
 
-The checker still validates only a narrow repository contract. It does not
-validate research truth, semantic entailment, web availability, or Hermes
-runtime behavior.
+This release checker pins the exact public release version. It validates only a
+narrow repository contract. It does not validate research truth, semantic
+entailment, web availability, or Hermes runtime behavior.
 
 A PASS means only that the checked repository structure and metadata contract
-are internally consistent.
+are internally consistent for v5.4.0.
 """
 
 from __future__ import annotations
@@ -26,7 +26,7 @@ try:
 except ImportError:  # pragma: no cover - environment failure, not a data case
     yaml = None
 
-VERSION_RE = re.compile(r"^5\.\d+\.\d+$")
+EXPECTED_VERSION = "5.4.0"
 REQUIRED_FRONTMATTER_KEYS = {
     "name",
     "description",
@@ -37,6 +37,7 @@ REQUIRED_FRONTMATTER_KEYS = {
     "metadata",
 }
 REQUIRED_PATHS = [
+    "README.md",
     "references/research-foundations.md",
     "references/v5-gap-map.md",
     "references/v5-research-manifest.json",
@@ -152,9 +153,9 @@ def validate(root: Path) -> list[str]:
             errors.append(
                 f"SKILL.md frontmatter name is {name!r}; expected 'anti-hallucination-protocol'"
             )
-        if not isinstance(version, str) or not VERSION_RE.fullmatch(version):
+        if version != EXPECTED_VERSION:
             errors.append(
-                f"SKILL.md frontmatter version is {version!r}; expected semantic v5 version like '5.3.0'"
+                f"SKILL.md frontmatter version is {version!r}; expected exact release version {EXPECTED_VERSION!r}"
             )
 
         platforms = frontmatter.get("platforms")
