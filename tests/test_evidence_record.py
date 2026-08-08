@@ -101,7 +101,14 @@ def test_t3_shared_origin_is_not_independence():
 
 def test_t3_unknown_lineage_cannot_be_promoted_to_independent():
     errors = mod.validate(rec(risk="T3", evidence=[ev(lineage="UNKNOWN")]))
-    assert any("all supporting lineage is UNKNOWN" in e for e in errors)
+    assert any("no supporting evidence marked as an independent origin" in e for e in errors)
+
+
+def test_t3_mixed_unknown_and_shared_lineage_still_lacks_independence():
+    errors = mod.validate(
+        rec(risk="T3", evidence=[ev(lineage="UNKNOWN"), ev(lineage="SHARED_ORIGIN")])
+    )
+    assert any("no supporting evidence marked as an independent origin" in e for e in errors)
 
 
 def test_one_independent_origin_is_allowed_without_fake_source_count_rule():
