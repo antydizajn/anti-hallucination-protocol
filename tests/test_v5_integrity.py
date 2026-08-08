@@ -25,7 +25,7 @@ def write_minimal_tree(tmp_path: Path, skill_text: str) -> Path:
     return root
 
 
-def valid_skill(version: str = "5.2.0") -> str:
+def valid_skill(version: str = "5.3.0") -> str:
     states = "\n".join(mod.REQUIRED_STATES)
     refs = "\n".join(mod.ACTIVE_REFERENCES)
     return f'''---
@@ -63,7 +63,7 @@ def test_wrong_major_version_fails(tmp_path):
 
 
 def test_non_semver_version_fails(tmp_path):
-    root = write_minimal_tree(tmp_path, valid_skill("five-point-two"))
+    root = write_minimal_tree(tmp_path, valid_skill("five-point-three"))
     errors = mod.validate(root)
     assert any("expected semantic v5 version" in e for e in errors)
 
@@ -97,14 +97,14 @@ def test_dead_backtick_path_fails(tmp_path):
 
 
 def test_no_frontmatter_fails_even_if_body_contains_version_string(tmp_path):
-    fake = "version: 5.2.0\n" + "\n".join(mod.REQUIRED_STATES + mod.ACTIVE_REFERENCES)
+    fake = "version: 5.3.0\n" + "\n".join(mod.REQUIRED_STATES + mod.ACTIVE_REFERENCES)
     root = write_minimal_tree(tmp_path, fake)
     errors = mod.validate(root)
     assert any("must begin with YAML frontmatter" in e for e in errors)
 
 
 def test_body_version_cannot_mask_wrong_major_frontmatter_version(tmp_path):
-    fake = valid_skill("4.0.0") + "\nversion: 5.2.0\n"
+    fake = valid_skill("4.0.0") + "\nversion: 5.3.0\n"
     root = write_minimal_tree(tmp_path, fake)
     errors = mod.validate(root)
     assert any("expected semantic v5 version" in e for e in errors)
@@ -117,28 +117,82 @@ def test_unclosed_frontmatter_fails(tmp_path):
     assert any("no closing" in e for e in errors)
 
 
-def test_malformed_top_level_line_fails(tmp_path):
+def test_malformed_top_level_line_fails_yaml_parse(tmp_path):
     fake = valid_skill().replace(
         "description: Test fixture",
         "description: Test fixture\nTHIS IS NOT A MAPPING",
     )
     root = write_minimal_tree(tmp_path, fake)
     errors = mod.validate(root)
-    assert any("malformed top-level mapping" in e for e in errors)
+    assert errors
 
 
-def test_terra_unterminated_flow_sequence_fails(tmp_path):
+def test_leading_unterminated_flow_sequence_fails(tmp_path):
     fake = valid_skill().replace("description: Test fixture", "description: [")
     root = write_minimal_tree(tmp_path, fake)
     errors = mod.validate(root)
-    assert any("unterminated flow sequence" in e for e in errors)
+    assert any("not valid YAML" in e for e in errors)
+
+
+def test_trailing_unterminated_flow_sequence_fails(tmp_path):
+    fake = valid_skill().replace("description: Test fixture", "description: Test fixture [")
+    root = write_minimal_tree(tmp_path, fake)
+    errors = mod.validate(root)
+    assert any("not valid YAML" in e for e in errors)
 
 
 def test_unterminated_quoted_scalar_fails(tmp_path):
     fake = valid_skill().replace("description: Test fixture", 'description: "broken')
     root = write_minimal_tree(tmp_path, fake)
     errors = mod.validate(root)
-    assert any("unterminated quoted scalar" in e for e in errors)
+    assert any("not valid YAML" in e for e in errors)
+
+
+def test_scalar_cannot_become_nested_mapping(tmp_path):
+    fake = valid_skill().replace(
+        "  hermes:\n    tags: [verification]",
+        "  hermes: scalar\n    tags: [verification]",
+    )
+    root = write_minimal_tree(tmp_path, fake)
+    errors = mod.validate(root)
+    assert any("not valid YAML" in e for e in errors)
+
+
+def test_colon_rich_plain_scalar_is_rejected_if_yaml_reinterprets_it(tmp_path):
+    fake = valid_skill().replace(
+        "description: Test fixture",
+        "description: malformed: scalar",
+    )
+    root = write_minimal_tree(tmp_path, fake)
+    errors = mod.validate(root)
+    assert errors
+
+
+def test_platforms_must_parse_as_list(tmp_path):
+    fake = valid_skill().replace(
+        "platforms: [linux, macos, windows]",
+        'platforms: "[linux, macos, windows]"',
+    )
+    root = write_minimal_tree(tmp_path, fake)
+    errors = mod.validate(root)
+    assert any("platforms must be a non-empty string list" in e for e in errors)
+
+
+def test_metadata_hermes_must_be_mapping(tmp_path):
+    fake = valid_skill().replace("  hermes:\n", "  hermes: nope\n")
+    root = write_minimal_tree(tmp_path, fake)
+    errors = mod.validate(root)
+    assert any("metadata.hermes must be a mapping" in e for e in errors)
+
+
+def test_duplicate_top_level_key_fails(tmp_path):
+    fake = valid_skill().replace(
+        "version: 5.3.0",
+        "version: 5.3.0\nversion: 5.3.1",
+    )
+    root = write_minimal_tree(tmp_path, fake)
+    errors = mod.validate(root)
+    assert any("duplicate top-level key: version" in e for e in errors)
 
 
 def test_missing_required_frontmatter_key_fails(tmp_path):
