@@ -1,55 +1,61 @@
 #!/usr/bin/env bash
-# liveness_check.sh - check whether the installed v5.1 skill and its narrow
+# liveness_check.sh - check whether the installed v5.2 skill and its narrow
 # deterministic verifier are actually present and runnable.
 #
-# This script intentionally does NOT claim that model behavior is healthy merely
-# because files exist. Legacy calibration/cron state is installation-specific and
-# is reported only when those external artifacts are present.
+# Required portable checks are L1/L2. Any failure or inability to execute a
+# required check makes this script exit nonzero. L3 is optional legacy telemetry.
+# L4 remains UNKNOWN by design because file presence cannot prove model behavior.
 
 set -uo pipefail
 
 SKILL_DIR="${AHP_SKILL_DIR:-$HOME/.hermes/skills/software-development/anti-hallucination-protocol}"
 VERIFY="$SKILL_DIR/scripts/verify_claim.py"
+INTEGRITY="$SKILL_DIR/scripts/check_v5_integrity.py"
 LEGACY_DIR="$HOME/.hermes/scripts/anti_halluc"
 LEGACY_CALIB="$LEGACY_DIR/calibration.jsonl"
+STATUS=0
 
-printf '==== anti-hallucination v5.1 liveness - %s ====\n' "$(date '+%Y-%m-%d %H:%M:%S %Z')"
+fail_required() {
+  printf '  [FAIL] %s\n' "$1"
+  STATUS=1
+}
+
+printf '==== anti-hallucination v5.2 liveness - %s ====\n' "$(date '+%Y-%m-%d %H:%M:%S %Z')"
 
 echo
 echo "L1. Installed skill and deterministic self-test:"
 if [ -f "$SKILL_DIR/SKILL.md" ]; then
   echo "  [OK]   SKILL.md present"
 else
-  echo "  [FAIL] SKILL.md missing: $SKILL_DIR/SKILL.md"
+  fail_required "SKILL.md missing: $SKILL_DIR/SKILL.md"
 fi
 
 if [ -f "$VERIFY" ]; then
   echo "  [OK]   verify_claim.py present"
 else
-  echo "  [FAIL] verify_claim.py missing: $VERIFY"
+  fail_required "verify_claim.py missing: $VERIFY"
 fi
 
-if command -v python3 >/dev/null 2>&1 && [ -f "$VERIFY" ]; then
-  if python3 "$VERIFY" file-exists "$SKILL_DIR/SKILL.md" --kind file >/dev/null 2>&1; then
-    echo "  [OK]   verify_claim.py self-test passed on installed SKILL.md"
-  else
-    echo "  [FAIL] verify_claim.py self-test failed"
-  fi
+if ! command -v python3 >/dev/null 2>&1; then
+  fail_required "python3 unavailable; required verifier self-test cannot run"
+elif [ ! -f "$VERIFY" ]; then
+  fail_required "verifier unavailable; required self-test cannot run"
+elif python3 "$VERIFY" file-exists "$SKILL_DIR/SKILL.md" --kind file >/dev/null 2>&1; then
+  echo "  [OK]   verify_claim.py self-test passed on installed SKILL.md"
 else
-  echo "  [SKIP] python3 or verifier unavailable"
+  fail_required "verify_claim.py self-test failed"
 fi
 
 echo
 echo "L2. Structural checker:"
-INTEGRITY="$SKILL_DIR/scripts/check_v5_integrity.py"
-if command -v python3 >/dev/null 2>&1 && [ -f "$INTEGRITY" ]; then
-  if python3 "$INTEGRITY" --root "$SKILL_DIR" >/dev/null 2>&1; then
-    echo "  [OK]   repository-local integrity checker passed"
-  else
-    echo "  [FAIL] repository-local integrity checker failed"
-  fi
+if ! command -v python3 >/dev/null 2>&1; then
+  fail_required "python3 unavailable; structural checker cannot run"
+elif [ ! -f "$INTEGRITY" ]; then
+  fail_required "check_v5_integrity.py unavailable: $INTEGRITY"
+elif python3 "$INTEGRITY" --root "$SKILL_DIR" >/dev/null 2>&1; then
+  echo "  [OK]   repository-local integrity checker passed"
 else
-  echo "  [SKIP] check_v5_integrity.py unavailable"
+  fail_required "repository-local integrity checker failed"
 fi
 
 echo
@@ -64,9 +70,9 @@ if [ -f "$LEGACY_CALIB" ]; then
   else
     echo "  [INFO] legacy calibration.jsonl exists; mtime unavailable"
   fi
-  echo "  [INFO] this legacy log is not part of v5.1's portable correctness contract"
+  echo "  [INFO] this legacy log is not part of v5.2's portable correctness contract"
 else
-  echo "  [INFO] no legacy calibration pipeline detected - this is not a v5.1 failure"
+  echo "  [INFO] no legacy calibration pipeline detected - this is not a v5.2 failure"
 fi
 
 echo
@@ -76,4 +82,9 @@ echo "            followed the protocol in real conversations. Measure that with
 echo "            an external Hermes behavioral benchmark or runtime gate."
 
 echo
-printf '%s\n' '==== end liveness check ===='
+if [ "$STATUS" -eq 0 ]; then
+  printf '%s\n' '==== end liveness check: PASS (portable L1/L2) ===='
+else
+  printf '%s\n' '==== end liveness check: FAIL (portable L1/L2) ===='
+fi
+exit "$STATUS"
