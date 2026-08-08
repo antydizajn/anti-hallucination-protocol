@@ -1,0 +1,77 @@
+name: Finalize AHP history tags
+
+on:
+  pull_request:
+    branches: [main]
+    paths: [.github/workflows/finalize-history-tags.yml]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  tag-history:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require migration token
+        env:
+          AHP_HISTORY_PAT: ${{ secrets.AHP_HISTORY_PAT }}
+        run: |
+          set -euo pipefail
+          test -n "${AHP_HISTORY_PAT:-}"
+
+      - name: Verify release points and publish lightweight tags
+        env:
+          AHP_HISTORY_PAT: ${{ secrets.AHP_HISTORY_PAT }}
+        run: |
+          set -euo pipefail
+
+          repo="https://x-access-token:${AHP_HISTORY_PAT}@github.com/antydizajn/anti-hallucination-protocol.git"
+          work="$(mktemp -d)"
+          git clone "$repo" "$work/repo"
+          cd "$work/repo"
+
+          declare -A releases=(
+            [v2.0.0]=b71cc9d06b58c8f12e06b77606a279f536a18959
+            [v3.0.0]=292d27deb885f19d68de0104b303970046e58785
+            [v4.0.0]=7efad667285e51c56640de2d1362ef3d7043fbe3
+            [v5.0.0]=5cef53c68d2c3144cb5519104d2e97826ee23dc4
+            [v5.1.0]=f295d82252284580e14dd3d05c4d24cf05873c99
+            [v5.2.0]=10cb36111e42200d73faf3cabe3e61b1efe8b9b9
+            [v5.3.0]=09b0b4dae84fac5bc8de45c73566093338d07433
+            [v5.4.0]=ef34f50bd4d8f13254bf7a0f4023d2c0803e0b4e
+          )
+
+          ordered=(v2.0.0 v3.0.0 v4.0.0 v5.0.0 v5.1.0 v5.2.0 v5.3.0 v5.4.0)
+
+          for tag in "${ordered[@]}"; do
+            commit="${releases[$tag]}"
+            expected="${tag#v}"
+            actual="$(git show "$commit":SKILL.md | sed -n 's/^version:[[:space:]]*//p' | head -1)"
+            echo "$tag -> $commit ; SKILL version=$actual"
+            test "$actual" = "$expected"
+
+            existing="$(git ls-remote --tags origin "refs/tags/$tag" | awk '{print $1}')"
+            if [ -n "$existing" ]; then
+              if [ "$existing" != "$commit" ]; then
+                echo "ERROR: existing tag $tag points to $existing, expected $commit" >&2
+                exit 42
+              fi
+              echo "$tag already correct"
+            else
+              git tag "$tag" "$commit"
+            fi
+          done
+
+          git push origin \
+            refs/tags/v2.0.0 \
+            refs/tags/v3.0.0 \
+            refs/tags/v4.0.0 \
+            refs/tags/v5.0.0 \
+            refs/tags/v5.1.0 \
+            refs/tags/v5.2.0 \
+            refs/tags/v5.3.0 \
+            refs/tags/v5.4.0
+
+          echo '=== remote tags ==='
+          git ls-remote --tags origin | sort -k2
