@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# liveness_check.sh - check whether the installed v5.2 skill and its narrow
+# liveness_check.sh - check whether the installed v5.4 skill and its narrow
 # deterministic verifier are actually present and runnable.
 #
 # Required portable checks are L1/L2. Any failure or inability to execute a
@@ -20,7 +20,7 @@ fail_required() {
   STATUS=1
 }
 
-printf '==== anti-hallucination v5.2 liveness - %s ====\n' "$(date '+%Y-%m-%d %H:%M:%S %Z')"
+printf '==== anti-hallucination v5.4 liveness - %s ====\n' "$(date '+%Y-%m-%d %H:%M:%S %Z')"
 
 echo
 echo "L1. Installed skill and deterministic self-test:"
@@ -53,9 +53,9 @@ if ! command -v python3 >/dev/null 2>&1; then
 elif [ ! -f "$INTEGRITY" ]; then
   fail_required "check_v5_integrity.py unavailable: $INTEGRITY"
 elif python3 "$INTEGRITY" --root "$SKILL_DIR" >/dev/null 2>&1; then
-  echo "  [OK]   repository-local integrity checker passed"
+  echo "  [OK]   v5.4 repository-local integrity checker passed"
 else
-  fail_required "repository-local integrity checker failed"
+  fail_required "v5.4 repository-local integrity checker failed"
 fi
 
 echo
@@ -70,9 +70,9 @@ if [ -f "$LEGACY_CALIB" ]; then
   else
     echo "  [INFO] legacy calibration.jsonl exists; mtime unavailable"
   fi
-  echo "  [INFO] this legacy log is not part of v5.2's portable correctness contract"
+  echo "  [INFO] this legacy log is not part of v5.4's portable correctness contract"
 else
-  echo "  [INFO] no legacy calibration pipeline detected - this is not a v5.2 failure"
+  echo "  [INFO] no legacy calibration pipeline detected - this is not a v5.4 failure"
 fi
 
 echo
