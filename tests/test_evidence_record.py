@@ -21,11 +21,12 @@ def ev(
     lineage="INDEPENDENT_ORIGIN",
     lineage_verification="VERIFIED",
     lineage_basis="independent primary observation",
+    independence_group="primary-observation",
     source="primary-source",
     source_class="primary",
     source_identity="canonical source identity",
     evidence_span="claim-matched span",
-    retrieved_at="2026-08-08T17:00:00+02:00",
+    retrieved_at="2026-01-01T12:00:00+00:00",
     freshness="CURRENT_ENOUGH",
     verifier="deterministic-or-explicit-verifier",
     verifier_failure_state="NONE_OBSERVED",
@@ -41,6 +42,7 @@ def ev(
         "lineage": lineage,
         "lineage_basis": lineage_basis,
         "lineage_verification": lineage_verification,
+        "independence_group": independence_group,
         "entailment": entailment,
         "verifier": verifier,
         "verifier_failure_state": verifier_failure_state,
@@ -98,6 +100,15 @@ def test_failed_verifier_cannot_earn_supported():
     assert any("verifier FAILED" in e for e in errors)
 
 
+def test_contradicted_requires_contradicting_evidence():
+    errors = mod.validate(rec(state="CONTRADICTED", evidence=[ev(entailment="UNCLEAR")]))
+    assert any("requires at least one CONTRADICTS" in e for e in errors)
+
+
+def test_contradicted_with_decisive_contradiction_is_structurally_valid():
+    assert mod.validate(rec(state="CONTRADICTED", evidence=[ev(entailment="CONTRADICTS")])) == []
+
+
 def test_conflict_requires_both_sides():
     errors = mod.validate(rec(state="CONFLICT", evidence=[ev()]))
     assert any("both supporting and contradicting" in e for e in errors)
@@ -131,23 +142,43 @@ def test_t3_unknown_lineage_cannot_be_promoted_to_independent():
 
 
 def test_t3_self_declared_independence_without_basis_fails():
-    errors = mod.validate(
-        rec(
-            risk="T3",
-            evidence=[ev(lineage="INDEPENDENT_ORIGIN", lineage_basis=None)],
-        )
-    )
+    errors = mod.validate(rec(risk="T3", evidence=[ev(lineage_basis=None)]))
     assert any("non-empty lineage_basis" in e for e in errors)
 
 
 def test_t3_heuristic_independence_cannot_earn_strong_state():
+    errors = mod.validate(rec(risk="T3", evidence=[ev(lineage_verification="HEURISTIC")]))
+    assert any("VERIFIED lineage" in e for e in errors)
+
+
+def test_t3_verified_independence_requires_group():
+    errors = mod.validate(rec(risk="T3", evidence=[ev(independence_group=None)]))
+    assert any("requires a non-empty independence_group" in e for e in errors)
+
+
+def test_t3_duplicate_independence_groups_are_rejected():
     errors = mod.validate(
         rec(
             risk="T3",
-            evidence=[ev(lineage="INDEPENDENT_ORIGIN", lineage_verification="HEURISTIC")],
+            evidence=[
+                ev(source="source-a", independence_group="shared-origin"),
+                ev(source="source-b", independence_group="shared-origin"),
+            ],
         )
     )
-    assert any("VERIFIED lineage" in e for e in errors)
+    assert any("cannot reuse the same independence_group" in e for e in errors)
+
+
+def test_t3_distinct_declared_groups_pass_structural_contract():
+    assert mod.validate(
+        rec(
+            risk="T3",
+            evidence=[
+                ev(source="source-a", independence_group="group-a"),
+                ev(source="source-b", independence_group="group-b"),
+            ],
+        )
+    ) == []
 
 
 def test_t3_unknown_source_class_cannot_earn_strong_state():
@@ -170,6 +201,16 @@ def test_t3_requires_retrieved_at():
     assert any("requires retrieved_at" in e for e in errors)
 
 
+def test_t3_retrieved_at_must_be_rfc3339():
+    errors = mod.validate(rec(risk="T3", evidence=[ev(retrieved_at=".")]))
+    assert any("retrieved_at must be an RFC3339" in e for e in errors)
+
+
+def test_t3_future_retrieved_at_is_rejected():
+    errors = mod.validate(rec(risk="T3", evidence=[ev(retrieved_at="2999-01-01T00:00:00Z")]))
+    assert any("retrieved_at cannot be materially in the future" in e for e in errors)
+
+
 def test_t3_requires_verifier_provenance():
     errors = mod.validate(rec(risk="T3", evidence=[ev(verifier=None)]))
     assert any("requires verifier provenance" in e for e in errors)
@@ -185,12 +226,26 @@ def test_t3_current_state_requires_observation_time():
     assert any("requires observation_time" in e for e in errors)
 
 
+def test_t3_current_state_observation_time_must_be_rfc3339():
+    errors = mod.validate(
+        rec(risk="T3", claim_type="current_state", observation_time="not-a-time")
+    )
+    assert any("observation_time must be an RFC3339" in e for e in errors)
+
+
+def test_t3_current_state_future_observation_time_is_rejected():
+    errors = mod.validate(
+        rec(risk="T3", claim_type="current_state", observation_time="2999-01-01T00:00:00Z")
+    )
+    assert any("observation_time cannot be materially in the future" in e for e in errors)
+
+
 def test_t3_current_state_requires_current_enough_evidence():
     errors = mod.validate(
         rec(
             risk="T3",
             claim_type="current_state",
-            observation_time="2026-08-08T17:00:00+02:00",
+            observation_time="2026-01-01T12:00:00+00:00",
             evidence=[ev(freshness="UNKNOWN")],
         )
     )
@@ -201,7 +256,7 @@ def test_t3_current_state_full_auditable_record_passes_contract():
     r = rec(
         risk="T3",
         claim_type="current_state",
-        observation_time="2026-08-08T17:00:00+02:00",
+        observation_time="2026-01-01T12:00:00+00:00",
         evidence=[ev()],
     )
     assert mod.validate(r) == []
@@ -222,6 +277,7 @@ def test_terra_opaque_current_state_false_pass_is_closed():
                 lineage="INDEPENDENT_ORIGIN",
                 lineage_basis=None,
                 lineage_verification="UNKNOWN",
+                independence_group=None,
                 verifier=None,
                 verifier_failure_state="UNKNOWN",
             )
@@ -233,8 +289,6 @@ def test_terra_opaque_current_state_false_pass_is_closed():
     assert any("source_class=unknown" in e for e in errors)
     assert any("lineage_basis" in e for e in errors)
 
-
-# Regression probes from the 2026-08-08 multi-agent forensic audits.
 
 def test_incomplete_t3_record_cannot_pass_schema_gate():
     bad = {
@@ -251,43 +305,37 @@ def test_incomplete_t3_record_cannot_pass_schema_gate():
 def test_unknown_state_is_rejected():
     bad = rec()
     bad["state"] = "TOTALLY_UNKNOWN_STATE"
-    errors = mod.validate(bad)
-    assert any("allowed enum" in e for e in errors)
+    assert any("allowed enum" in e for e in mod.validate(bad))
 
 
 def test_unknown_risk_tier_is_rejected():
     bad = rec()
     bad["risk_tier"] = "T9000"
-    errors = mod.validate(bad)
-    assert any("allowed enum" in e for e in errors)
+    assert any("allowed enum" in e for e in mod.validate(bad))
 
 
 def test_unknown_entailment_is_rejected():
     bad = rec(evidence=[ev()])
     bad["evidence"][0]["entailment"] = "TRUST_ME_BRO"
-    errors = mod.validate(bad)
-    assert any("allowed enum" in e for e in errors)
+    assert any("allowed enum" in e for e in mod.validate(bad))
 
 
 def test_unknown_integrity_is_rejected():
     bad = rec(evidence=[ev()])
     bad["evidence"][0]["integrity"] = "TOTALLY_FINE_PROBABLY"
-    errors = mod.validate(bad)
-    assert any("allowed enum" in e for e in errors)
+    assert any("allowed enum" in e for e in mod.validate(bad))
 
 
 def test_unknown_lineage_is_rejected():
     bad = rec(evidence=[ev()])
     bad["evidence"][0]["lineage"] = "FIVE_AGENTS_AGREE"
-    errors = mod.validate(bad)
-    assert any("allowed enum" in e for e in errors)
+    assert any("allowed enum" in e for e in mod.validate(bad))
 
 
 def test_unknown_lineage_verification_is_rejected():
     bad = rec(evidence=[ev()])
     bad["evidence"][0]["lineage_verification"] = "FIVE_AGENTS_AGREE"
-    errors = mod.validate(bad)
-    assert any("allowed enum" in e for e in errors)
+    assert any("allowed enum" in e for e in mod.validate(bad))
 
 
 def test_non_object_evidence_item_is_rejected_without_crash():
@@ -300,5 +348,4 @@ def test_non_object_evidence_item_is_rejected_without_crash():
 def test_additional_properties_are_rejected():
     bad = rec()
     bad["evidence"][0]["confidence_the_model_felt"] = 0.999
-    errors = mod.validate(bad)
-    assert any("additional property" in e for e in errors)
+    assert any("additional property" in e for e in mod.validate(bad))
