@@ -1,19 +1,18 @@
 #!/usr/bin/env python3
 """Check offline research-provenance consistency for Anti-Hallucination Protocol.
 
-Two contracts are checked:
+Canonical identity lives in manifests/reference documents, not duplicated in
+active SKILL.md prompt context.
 
-1. the curated v4 arXiv manifest against SKILL.md and research-foundations.md;
-2. the v5 research manifest against the numbered source list in v5-gap-map.md.
+Contracts checked:
+1. curated v4 arXiv manifest structure + research-foundations.md references;
+2. v5 research manifest against the numbered source list in v5-gap-map.md;
+3. SKILL.md points to the canonical research layer and does not need to repeat
+   every paper title/ID.
 
-This checker is deliberately OFFLINE. PASS means the repository's declared
-source identities are internally consistent. It does not prove live existence,
-source correctness, or correctness of the protocol's interpretation.
-
-Exit codes:
-  0 = provenance files are internally consistent
-  1 = one or more provenance invariants failed
-  2 = checker invocation / I/O / JSON error
+This checker is deliberately OFFLINE. PASS means repository-internal source
+identities are consistent. It does not prove live existence, source truth, or
+correctness of a research interpretation.
 """
 
 from __future__ import annotations
@@ -26,11 +25,12 @@ from dataclasses import dataclass
 from pathlib import Path
 
 ARXIV_ID_RE = re.compile(r"^\d{4}\.\d{4,5}$")
-SKILL_ENTRY_RE = re.compile(
-    r"\[(?P<title>.+?) - arXiv:(?P<id>\d{4}\.\d{4,5})\]"
-    r"\((?P<url>https://arxiv\.org/abs/\d{4}\.\d{4,5})\)"
-)
 V5_ENTRY_RE = re.compile(r"^\d+\.\s+(?P<display>.+)$", re.MULTILINE)
+CANONICAL_SKILL_POINTERS = (
+    "references/research-foundations.md",
+    "references/v5-research-manifest.json",
+    "references/v5-gap-map.md",
+)
 
 
 @dataclass(frozen=True)
@@ -102,46 +102,6 @@ def validate_manifest(papers: list[Paper], minimum: int = 30) -> list[str]:
     return errors
 
 
-def parse_skill_entries(text: str) -> list[Paper]:
-    return [
-        Paper(id=m.group("id"), title=m.group("title"), url=m.group("url"))
-        for m in SKILL_ENTRY_RE.finditer(text)
-    ]
-
-
-def compare_skill_to_manifest(papers: list[Paper], skill_text: str) -> list[str]:
-    errors: list[str] = []
-    entries = parse_skill_entries(skill_text)
-
-    by_id: dict[str, list[Paper]] = {}
-    for entry in entries:
-        by_id.setdefault(entry.id, []).append(entry)
-
-    manifest_ids = {p.id for p in papers}
-    for paper in papers:
-        found = by_id.get(paper.id, [])
-        if not found:
-            errors.append(f"SKILL.md missing manifest paper {paper.id}: {paper.title}")
-            continue
-        if len(found) != 1:
-            errors.append(f"SKILL.md cites {paper.id} {len(found)} times; expected exactly once")
-            continue
-        entry = found[0]
-        if entry.title != paper.title:
-            errors.append(
-                f"title mismatch for {paper.id}: SKILL={entry.title!r}; manifest={paper.title!r}"
-            )
-        if entry.url != paper.url:
-            errors.append(
-                f"URL mismatch for {paper.id}: SKILL={entry.url!r}; manifest={paper.url!r}"
-            )
-
-    extras = sorted(set(by_id) - manifest_ids)
-    for paper_id in extras:
-        errors.append(f"SKILL.md research-provenance citation not present in manifest: {paper_id}")
-    return errors
-
-
 def compare_foundations_to_manifest(papers: list[Paper], foundations_text: str) -> list[str]:
     errors: list[str] = []
     for paper in papers:
@@ -184,6 +144,14 @@ def compare_v5_gap_to_manifest(displays: list[str], gap_text: str) -> list[str]:
     return errors
 
 
+def validate_skill_pointers(skill_text: str) -> list[str]:
+    errors: list[str] = []
+    for pointer in CANONICAL_SKILL_POINTERS:
+        if pointer not in skill_text:
+            errors.append(f"SKILL.md missing canonical research pointer: {pointer}")
+    return errors
+
+
 def run(
     manifest: Path,
     skill: Path,
@@ -194,14 +162,15 @@ def run(
 ) -> list[str]:
     papers = load_manifest(manifest)
     errors = validate_manifest(papers, minimum=minimum)
-    skill_text = skill.read_text(encoding="utf-8")
     foundations_text = foundations.read_text(encoding="utf-8")
-    errors.extend(compare_skill_to_manifest(papers, skill_text))
     errors.extend(compare_foundations_to_manifest(papers, foundations_text))
 
     v5_displays = load_v5_manifest(v5_manifest)
     gap_text = v5_gap.read_text(encoding="utf-8")
     errors.extend(compare_v5_gap_to_manifest(v5_displays, gap_text))
+
+    skill_text = skill.read_text(encoding="utf-8")
+    errors.extend(validate_skill_pointers(skill_text))
     return errors
 
 
