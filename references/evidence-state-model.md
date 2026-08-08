@@ -45,7 +45,7 @@ verifier_failure_state
 
 Do not invent values for fields that cannot be established. Use explicit unknown states where available and downgrade the claim when an unknown is load-bearing.
 
-The JSON schema is a storage/shape contract. `scripts/check_evidence_record.py` adds cross-field invariants that depend on risk tier and claim type.
+The JSON schema is a storage/shape contract. `scripts/check_evidence_record.py` adds deterministic cross-field invariants that depend on risk tier and claim type. The checker deliberately supports only the schema keywords used by the canonical schema and refuses an unknown schema keyword rather than silently ignoring a future constraint.
 
 ## Claim states
 
@@ -61,6 +61,8 @@ UNKNOWN_SCOPE
 ```
 
 Forbidden collapses include `ERROR -> NOT_FOUND`, scoped absence -> global absence, and `PARTIAL`/`INCONCLUSIVE`/`CONFLICT` -> unsupported certainty.
+
+`CONTRADICTED` means decisive contrary evidence remains and no material supporting `ENTAILS` evidence survives in the submitted record. If material support and contradiction both remain unresolved, use `CONFLICT`.
 
 ## Entailment
 
@@ -157,7 +159,8 @@ For every supporting `ENTAILS` item, the checker requires:
 - known `source_class`;
 - non-empty `source_identity`;
 - non-empty `evidence_span`;
-- RFC3339 `retrieved_at` with timezone;
+- strict RFC3339 `retrieved_at` with timezone;
+- `integrity=CLEAN_OBSERVED`;
 - non-empty verifier provenance;
 - `verifier_failure_state=NONE_OBSERVED`.
 
@@ -175,11 +178,11 @@ If multiple supporting items claim verified independence, the deterministic chec
 For T3 `current_state`, a strong verdict additionally requires:
 
 ```text
-observation_time = RFC3339 timestamp with timezone, not materially in the future
+observation_time = strict RFC3339 timestamp with timezone, not materially in the future
 freshness = CURRENT_ENOUGH
 ```
 
-Supporting `retrieved_at` timestamps must also be RFC3339 and not materially in the future.
+Supporting `retrieved_at` timestamps must also be strict RFC3339 and not materially in the future. Python-specific ISO variants such as a space instead of `T` are not accepted by this contract.
 
 A stale or unknown freshness state cannot be promoted to current truth merely because the top-level state says `SUPPORTED_WITH_SCOPE`.
 
