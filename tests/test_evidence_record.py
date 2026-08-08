@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import importlib.util
 import sys
 from pathlib import Path
@@ -109,6 +110,13 @@ def test_contradicted_with_decisive_contradiction_is_structurally_valid():
     assert mod.validate(rec(state="CONTRADICTED", evidence=[ev(entailment="CONTRADICTS")])) == []
 
 
+def test_contradicted_cannot_hide_surviving_support():
+    errors = mod.validate(
+        rec(state="CONTRADICTED", evidence=[ev(), ev(entailment="CONTRADICTS")])
+    )
+    assert any("use CONFLICT when both sides remain" in e for e in errors)
+
+
 def test_conflict_requires_both_sides():
     errors = mod.validate(rec(state="CONFLICT", evidence=[ev()]))
     assert any("both supporting and contradicting" in e for e in errors)
@@ -186,6 +194,16 @@ def test_t3_unknown_source_class_cannot_earn_strong_state():
     assert any("source_class=unknown" in e for e in errors)
 
 
+def test_t3_suspect_integrity_cannot_earn_strong_state():
+    errors = mod.validate(rec(risk="T3", evidence=[ev(integrity="SUSPECT")]))
+    assert any("integrity=CLEAN_OBSERVED" in e for e in errors)
+
+
+def test_t3_unknown_integrity_cannot_earn_strong_state():
+    errors = mod.validate(rec(risk="T3", evidence=[ev(integrity="UNKNOWN")]))
+    assert any("integrity=CLEAN_OBSERVED" in e for e in errors)
+
+
 def test_t3_requires_source_identity():
     errors = mod.validate(rec(risk="T3", evidence=[ev(source_identity=None)]))
     assert any("requires source_identity" in e for e in errors)
@@ -203,7 +221,14 @@ def test_t3_requires_retrieved_at():
 
 def test_t3_retrieved_at_must_be_rfc3339():
     errors = mod.validate(rec(risk="T3", evidence=[ev(retrieved_at=".")]))
-    assert any("retrieved_at must be an RFC3339" in e for e in errors)
+    assert any("retrieved_at must be a strict RFC3339" in e for e in errors)
+
+
+def test_t3_retrieved_at_rejects_python_iso_space_separator():
+    errors = mod.validate(
+        rec(risk="T3", evidence=[ev(retrieved_at="2026-01-01 12:00:00+00:00")])
+    )
+    assert any("retrieved_at must be a strict RFC3339" in e for e in errors)
 
 
 def test_t3_future_retrieved_at_is_rejected():
@@ -230,7 +255,7 @@ def test_t3_current_state_observation_time_must_be_rfc3339():
     errors = mod.validate(
         rec(risk="T3", claim_type="current_state", observation_time="not-a-time")
     )
-    assert any("observation_time must be an RFC3339" in e for e in errors)
+    assert any("observation_time must be a strict RFC3339" in e for e in errors)
 
 
 def test_t3_current_state_future_observation_time_is_rejected():
@@ -349,3 +374,17 @@ def test_additional_properties_are_rejected():
     bad = rec()
     bad["evidence"][0]["confidence_the_model_felt"] = 0.999
     assert any("additional property" in e for e in mod.validate(bad))
+
+
+def test_unimplemented_schema_keyword_fails_closed():
+    schema = copy.deepcopy(mod.load_schema())
+    schema["properties"]["claim"]["pattern"] = "^X$"
+    errors = mod.validate_schema_definition(schema)
+    assert any("unsupported schema keyword 'pattern'" in e for e in errors)
+
+
+def test_validate_refuses_schema_it_cannot_fully_interpret():
+    schema = copy.deepcopy(mod.load_schema())
+    schema["properties"]["claim"]["maxLength"] = 10
+    errors = mod.validate(rec(), schema=schema)
+    assert any("unsupported schema keyword 'maxLength'" in e for e in errors)
