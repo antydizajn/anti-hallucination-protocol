@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="assets/anti-hallucination-eye.svg" alt="Anti-Hallucination Protocol eye mark" width="220">
+
 # Anti-Hallucination Protocol
 
 **Make the agent earn the sentence.**
