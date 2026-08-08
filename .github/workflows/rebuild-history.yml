@@ -77,8 +77,10 @@ jobs:
 
           source_tree="$(git rev-parse HEAD^{tree})"
           current_tree="$(git -C "$work/current" rev-parse HEAD^{tree})"
+          rebuilt_head="$(git rev-parse HEAD)"
           echo "rebuilt_source_tree=$source_tree"
           echo "standalone_main_tree=$current_tree"
+          echo "history_rebuilt_head=$rebuilt_head"
 
           if [ "$source_tree" != "$current_tree" ]; then
             echo "ERROR: rebuilt history does not match current standalone main" >&2
