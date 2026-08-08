@@ -1,6 +1,6 @@
 # Anti-Hallucination Protocol v5.2 - multi-model audit synthesis
 
-This directory archives the raw audit reports that informed the v5.3 hardening pass.
+This directory archives the audit reports that informed the v5.3 and v5.4 hardening passes.
 
 ## Method
 
@@ -60,6 +60,12 @@ The SHA-256 values below refer to the user-supplied source files before archival
 | `PPX-KIMIK3.md` | 58889 | `441bca14c3166e97ed4c393783e00206f6710710c07cea31e84dc8adc48ac64c` |
 | `PPX-AHP_v5.2_Forensic_Audit.md` | 48308 | `445ef4d291880da971966e3d2c7f49c4136d0d7d353e8f22be29c4d0b7996665` |
 
+### Archive-integrity note
+
+The source-file manifest above records the supplied originals. It is not itself proof that every GitHub copy is byte-identical.
+
+At the v5.4 hardening point, `AUDITS/PPX-GLM5.2.md` is still an explicit placeholder containing the original source hash and size, not the raw 91,118-byte report. Therefore the repository must **not** claim a complete 10/10 byte-identical raw audit archive until that placeholder is replaced and the archived bytes are independently compared to the manifest.
+
 ## Consolidated finding ledger
 
 | ID | Finding | Evidence | Severity | Decision |
@@ -71,14 +77,14 @@ The SHA-256 values below refer to the user-supplied source files before archival
 | F-005 | `godmode_battery.sh` writes to installation-external calibration state by default and can produce a partial score after skips/errors | FILE-VERIFIED by Terra against the shipped script | P1/P0 operational hazard | RETIRE from active v5 contract / make legacy status explicit; do not execute during validation |
 | F-006 | `EVIDENCE RECORD: PASS` is truth-adjacent wording for a checker that only establishes schema + deterministic invariants | FILE-VERIFIED contract issue; Terra explicitly identified integration risk | P1 | Rename success to `STRUCTURALLY_VALID` |
 | F-007 | README checkout liveness command targets the installed skill unless `AHP_SKILL_DIR` is set | REPRODUCED by Terra and DeepSeek | P2 | FIX README command |
-| F-008 | Conceptual evidence-state vocabulary drifts from executable schema (`SUPPORTS` vs `ENTAILS`, freshness labels, verifier outcome vs verifier-failure state) | FILE-VERIFIED by Big Pickle/Nemotron and current source inspection | P1/P2 | ALIGN conceptual reference to executable contract; explicitly distinguish execution outcome from failure-state field |
+| F-008 | Conceptual evidence-state vocabulary drifts from executable schema (`SUPPORTS` vs `ENTAILS`, freshness labels, verifier outcome vs verifier-failure state) | FILE-VERIFIED by Big Pickle/Nemotron and source inspection | P1/P2 | ALIGN conceptual reference to executable contract; explicitly distinguish execution outcome from failure-state field |
 | F-009 | Main `SKILL.md` is dense and carries a large bibliography/reference inventory in always-loaded context | CROSS-CONFIRMED by all document-only PPX audits; behavioral effect remains HEURISTIC | P1 document architecture | FIX packaging; benchmark obedience separately |
 | F-010 | The portable public skill includes a local `HSDB = HyperspaceDB` installation convention | FILE-VERIFIED, repeatedly flagged by PPX | P2 | REMOVE from portable main skill |
 | F-011 | `consequential` is the main escalation trigger but lacks a compact operational definition | CROSS-CONFIRMED document finding | P1 | DEFINE in the hot path |
 | F-012 | README heading `What it catches` can be read as a behavioral guarantee | Document-level finding | P2 | Rename to `Failure modes it targets` / qualify deterministic-vs-policy scope |
 | F-013 | Behavioral obedience under long-context/tool pressure is not established by unit tests or Markdown attack cases | Explicitly admitted by v5.2 and cross-confirmed by both audit classes | Architectural unknown | BENCHMARK, not another prose rule |
 | F-014 | Native Windows support is not demonstrated for Bash-only liveness/legacy helpers | INFERENCE from shipped shell scripts; no native Windows execution | P2 docs | Clarify support boundary rather than claiming unverified shell portability |
-| F-015 | Protocol attack corpus lives under `tests/`, which is not a Hermes progressive-disclosure support directory in the inspected local parser | FILE-VERIFIED by Sonnet | P2 | Add canonical `references/adversarial-cases.md`; keep executable tests under `tests/` |
+| F-015 | Protocol attack corpus lives under `tests/`, which is not a progressive-disclosure reference path used by the protocol | FILE/DOC finding | P2 | Add canonical `references/adversarial-cases.md`; keep executable tests under `tests/` |
 
 ## Findings intentionally rejected or downgraded
 
@@ -88,15 +94,17 @@ Nemotron labels this a P0. That severity is rejected. A string-shape validator c
 
 Decision: KEEP the external-provenance limitation, rename structural PASS, and benchmark/runtime-verify provenance when it matters.
 
-### `CONTRADICTED` does not require supporting `ENTAILS` evidence
+### A single decisive contradiction may legitimately produce `CONTRADICTED`
 
-Nemotron treats `CONTRADICTED + one CONTRADICTS item` as a false positive. That conclusion is rejected. A claim can be contradicted by decisive contrary evidence without any supporting evidence. `CONFLICT`, not `CONTRADICTED`, is the state that requires evidence on both sides.
+Nemotron treated `CONTRADICTED + one CONTRADICTS item` as a false positive. That conclusion remains rejected. A claim can be contradicted by decisive contrary evidence without any supporting evidence.
 
-Decision: REJECT.
+v5.4 tightens a different case: `CONTRADICTED` now rejects a record that simultaneously retains material `ENTAILS` evidence. If supporting and contradicting evidence both survive, the correct top-level state is `CONFLICT`.
+
+Decision: KEEP single-decisive-contradiction semantics; reject hidden surviving support.
 
 ### `PARTIAL` does not have to reject every contaminated item
 
-A partial/inconclusive evidence record may legitimately retain contaminated evidence as an observed input while refusing a strong conclusion. Blanket rejection would erase useful provenance. Strong `SUPPORTED_WITH_SCOPE` already rejects contaminated supporting evidence.
+A partial/inconclusive evidence record may legitimately retain contaminated evidence as an observed input while refusing a strong conclusion. Blanket rejection would erase useful provenance. Strong `SUPPORTED_WITH_SCOPE` rejects contaminated support, and v5.4 further requires `CLEAN_OBSERVED` integrity for every T3 supporting `ENTAILS` item.
 
 Decision: REJECT blanket prohibition; keep contamination visible and scoped.
 
@@ -104,7 +112,7 @@ Decision: REJECT blanket prohibition; keep contamination visible and scoped.
 
 Some reports call the pipeline a mandatory ten-stage ritual. The text explicitly says it is a control model and that T0/T1 should not be inflated into ceremony. The cognitive-load concern is real, but the literal `mandatory` claim is not.
 
-Decision: REJECT literal claim, FIX discoverability by putting a small hot path first and moving deep material to references.
+Decision: REJECT literal claim. v5.3 moved to a seven-rule hot path; v5.4 additionally states that ordinary T2 work normally uses only that hot path plus a direct claim-matched check.
 
 ### Add `PLAUSIBLY_INDEPENDENT`
 
@@ -114,29 +122,73 @@ Rejected. It adds another epistemic label without solving provenance. `UNKNOWN` 
 
 Rejected. The policy layer remains useful when deterministic helpers are unavailable. Hard-gating the entire skill on a terminal would remove citation, intent, prompt-injection, current-state and completion controls from environments that still need them.
 
-Decision: document degraded mode instead.
+Decision: v5.4 documents degraded mode instead: policy remains active; deterministic validation must be reported as not performed.
 
 ## v5.3 accepted change set
 
-The next release should be a hardening + compression release, not another feature pile.
+v5.3 was a hardening + compression release rather than another feature pile.
 
-1. Replace the hand-rolled frontmatter acceptance decision with real YAML parsing compatible with Hermes semantics, while retaining explicit required-key/profile checks.
-2. Add regression probes for the exact malformed YAML shapes reproduced by Terra/DeepSeek.
-3. Validate RFC3339 timestamps for T3 current-state support and reject implausible future `observation_time` beyond a small clock-skew allowance.
-4. Detect duplicate non-empty `independence_group` values among evidence items that claim verified independent support. This only catches self-declared internal inconsistency; it does not prove true independence.
-5. Rename successful evidence-record output from `PASS` to `STRUCTURALLY_VALID` and update tests/docs.
-6. Remove duplicated research bibliography/source lists from active `SKILL.md`. Keep canonical research identity in manifests/reference documents.
-7. Align `evidence-state-model.md` vocabulary with executable schema/checker terminology.
-8. Define `consequential` operationally near the risk-tier entry point.
-9. Remove the local HSDB convention from the portable public skill.
-10. Move the protocol-level adversarial case reference into `references/` while retaining executable tests in `tests/`.
-11. Clarify README liveness validation command and Windows/Bash boundary.
-12. Make legacy v3/godmode scripts explicitly non-load-bearing. Do not present historical calibration machinery as portable v5 health.
-13. Preserve the explicit hard limit that Markdown, source labels and deterministic shape validation do not prove semantic truth or runtime obedience.
+1. Replaced the hand-rolled frontmatter acceptance decision with real YAML parsing compatible with Hermes semantics, while retaining explicit required-key/profile checks.
+2. Added regression probes for malformed YAML shapes reproduced by Terra/DeepSeek.
+3. Added RFC3339-style timestamp validation and future-time rejection for T3 support.
+4. Added duplicate `independence_group` detection among items claiming verified independent support.
+5. Renamed successful evidence-record output from `PASS` to `STRUCTURALLY_VALID`.
+6. Removed duplicated research bibliography/source lists from active `SKILL.md`.
+7. Aligned `evidence-state-model.md` vocabulary with executable schema/checker terminology.
+8. Defined `consequential` operationally near the risk-tier entry point.
+9. Removed the local HSDB convention from the portable public skill.
+10. Added the protocol-level adversarial case reference under `references/` while retaining executable tests under `tests/`.
+11. Clarified README liveness validation and Windows/Bash boundary.
+12. Made legacy v3/godmode scripts explicitly non-load-bearing and read-only by default.
+13. Preserved the hard limit that Markdown, source labels and deterministic shape validation do not prove semantic truth or runtime obedience.
+
+The historical reports include successful v5.2 test runs. They are **not** evidence that later v5.3 or v5.4 code passes after modification.
+
+## v5.4 disposition
+
+v5.4 is a consolidation release. It does not add a new epistemic state machine.
+
+| ID | v5.4 issue | Basis | Disposition |
+|---|---|---|---|
+| V54-001 | Evidence checker implemented a JSON Schema subset but could silently ignore a future assertion keyword | source inspection | FIXED IN CODE: schema-definition gate rejects unsupported keywords instead of pretending full validation |
+| V54-002 | v5 integrity checker accepted any `5.x.y`, so a different release could receive the current release-integrity PASS | source inspection | FIXED IN CODE: exact `5.4.0` release pin + regressions |
+| V54-003 | Python `datetime.fromisoformat` accepts ISO-like strings outside the intended RFC3339 contract, including a space separator | source inspection | FIXED IN CODE: strict RFC3339 lexical gate + regression |
+| V54-004 | Strong T3 support allowed `integrity=SUSPECT` or `UNKNOWN` because only `CONTAMINATED` was blocked | contract comparison | FIXED IN CODE: every T3 supporting `ENTAILS` item requires `CLEAN_OBSERVED` |
+| V54-005 | `CONTRADICTED` could retain surviving `ENTAILS` evidence while the conceptual aggregator said no material support survives | schema/checker/reference comparison | FIXED IN CODE: surviving support requires `CONFLICT`; single decisive contradiction remains valid |
+| V54-006 | Canonical research display for arXiv:2606.01435 drifted from the current primary-source title | PPX research finding + primary-source recheck | FIXED IN MANIFEST + GAP MAP |
+| V54-007 | Helper invocation path and non-automatic enforcement were under-explained | official Hermes docs + PPX document findings | FIXED IN SKILL/README: `${HERMES_SKILL_DIR}` example, explicit agent-invoked helper contract, degraded mode |
+| V54-008 | Ordinary T2 could still read as if the entire deep apparatus were expected | cross-model document finding | FIXED IN SKILL/README: hot path + direct check is the ordinary T2 default |
+| V54-009 | Behavioral obedience remains unmeasured | cross-model heuristic + explicit project limitation | BENCHMARK, NOT A PROSE FIX |
+| V54-010 | Raw audit archive is not yet 10/10 byte-identical because `PPX-GLM5.2.md` is a placeholder | repository inspection | OPEN ARCHIVE-INTEGRITY TASK; does not affect protocol runtime code |
+
+### v5.4 semantic boundary
+
+The v5.4 checker intentionally **does not** attempt to reject semantically weak free-text provenance such as `lineage_basis="trust me"` by phrase matching. Such a filter would be trivially bypassable and would confuse syntax with provenance truth.
+
+What v5.4 can reject deterministically is narrower:
+
+- absent/unknown required state;
+- malformed record shape;
+- unknown canonical enum;
+- unsupported schema assertion keyword;
+- non-RFC3339 or materially future T3 timestamps;
+- T3 supporting evidence that is not `CLEAN_OBSERVED`;
+- missing T3 source/verifier/provenance fields;
+- duplicate declared verified-independence groups;
+- internally inconsistent top-level claim states such as `CONTRADICTED` while material `ENTAILS` support remains.
+
+That boundary is deliberate:
+
+```text
+STRUCTURALLY_VALID != TRUE
+PATCH PRESENT != BUG CLOSED
+GREEN UNIT TESTS != MODEL OBEDIENCE
+DOCUMENTED CONTROL != IMPLEMENTED CONTROL != RUNTIME ENFORCEMENT
+```
 
 ## Deferred work
 
-These are not v5.3 Markdown fixes:
+These are not v5.4 Markdown fixes:
 
 - real behavioral obedience benchmark across model classes;
 - runtime/output gate or Hermes hook;
@@ -144,10 +196,11 @@ These are not v5.3 Markdown fixes:
 - live world-state adapters;
 - semantic entailment verifier;
 - judge-bias evaluation harness;
-- native Windows execution matrix.
+- native Windows execution matrix;
+- replacement and byte-level verification of the remaining raw-audit placeholder.
 
 ## Bottom line
 
-v5.2 is a clear architectural improvement over the installed v2 in evidence-state discipline, verifier failure handling, current-state reasoning, prompt-injection awareness and testability. The audit also shows that green unit tests did not close several executable contract gaps.
+v5.2 established the architecture. v5.3 compressed the active instruction plane and closed the strongest reproduced deterministic gaps from the first audit wave. v5.4 focuses on contract drift: exact release identity, schema/checker agreement, strict temporal syntax, stronger T3 integrity, claim-state consistency, current research identity and explicit Hermes helper invocation semantics.
 
-v5.3 should therefore get smaller in its active instruction plane while becoming stricter at the deterministic boundaries that machines can actually check.
+The next meaningful confidence increase should come from executing the v5.4 regression suite and then running a fresh blind adversarial audit. More prose without behavioral evidence would be the wrong direction.
