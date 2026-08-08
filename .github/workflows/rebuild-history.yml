@@ -61,3 +61,5 @@ jobs:
           git push --force standalone HEAD:refs/heads/history-rebuilt
 
           echo "history-rebuilt pushed successfully"
+
+          # Trigger marker: workflow already existed before this push.
