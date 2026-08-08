@@ -6,9 +6,10 @@ The validator has two layers:
 1. validate the record against references/evidence-record.schema.json;
 2. validate protocol state invariants that JSON Schema cannot express cleanly.
 
-It does not decide whether prose evidence truly entails a claim. A PASS means
-only that the record satisfies the declared machine-readable contract and the
-implemented deterministic state invariants.
+It does not decide whether prose evidence truly entails a claim, whether a
+source identity is factually correct, or whether two sources are truly
+independent. A PASS means only that the record satisfies the declared
+machine-readable contract and the implemented deterministic invariants.
 
 Exit codes:
   0 = schema + deterministic invariants passed
@@ -115,6 +116,10 @@ def load_schema(path: Path = DEFAULT_SCHEMA) -> dict[str, Any]:
     return data
 
 
+def _nonempty(value: Any) -> bool:
+    return isinstance(value, str) and bool(value.strip())
+
+
 def validate(record: dict[str, Any], schema: dict[str, Any] | None = None) -> list[str]:
     errors: list[str] = []
     schema = schema if schema is not None else load_schema()
@@ -123,19 +128,18 @@ def validate(record: dict[str, Any], schema: dict[str, Any] | None = None) -> li
     if schema_errors:
         return schema_errors
 
-    # Schema validation above guarantees evidence is a non-empty list of objects
-    # with the required enum-constrained fields.
     evidence = record["evidence"]
     state = record["state"]
     risk = record["risk_tier"]
+    claim_type = record["claim_type"]
     scope = record.get("scope")
 
     entails = [e for e in evidence if e["entailment"] == "ENTAILS"]
     contradictions = [e for e in evidence if e["entailment"] == "CONTRADICTS"]
     contaminated = [e for e in evidence if e["integrity"] == "CONTAMINATED"]
-    failed_verifiers = [e for e in evidence if e.get("verifier_failure_state") == "FAILED"]
+    failed_verifiers = [e for e in evidence if e["verifier_failure_state"] == "FAILED"]
 
-    if state == STRONG and (not isinstance(scope, str) or not scope.strip()):
+    if state == STRONG and not _nonempty(scope):
         errors.append("SUPPORTED_WITH_SCOPE requires an explicit non-empty scope")
 
     if state == STRONG and not entails:
@@ -160,12 +164,42 @@ def validate(record: dict[str, Any], schema: dict[str, Any] | None = None) -> li
         errors.append("ERROR state should record at least one FAILED verifier")
 
     if risk == "T3" and state == STRONG and entails:
-        # No universal two-source rule. A strong T3 verdict must, however, have
-        # at least one supporting item whose lineage is explicitly independent.
-        if not any(e["lineage"] == "INDEPENDENT_ORIGIN" for e in entails):
+        independent = [e for e in entails if e["lineage"] == "INDEPENDENT_ORIGIN"]
+        verified_independent = [
+            e
+            for e in independent
+            if e["lineage_verification"] == "VERIFIED" and _nonempty(e.get("lineage_basis"))
+        ]
+        if not verified_independent:
             errors.append(
-                "T3 SUPPORTED_WITH_SCOPE has no supporting evidence marked as an independent origin"
+                "T3 SUPPORTED_WITH_SCOPE requires an INDEPENDENT_ORIGIN with VERIFIED lineage and non-empty lineage_basis"
             )
+
+        if any(e["source_class"] == "unknown" for e in entails):
+            errors.append("T3 SUPPORTED_WITH_SCOPE cannot rely on source_class=unknown")
+
+        for index, item in enumerate(entails):
+            if not _nonempty(item.get("source_identity")):
+                errors.append(f"T3 supporting evidence #{index + 1} requires source_identity")
+            if not _nonempty(item.get("evidence_span")):
+                errors.append(f"T3 supporting evidence #{index + 1} requires evidence_span")
+            if not _nonempty(item.get("retrieved_at")):
+                errors.append(f"T3 supporting evidence #{index + 1} requires retrieved_at")
+            if item["verifier_failure_state"] != "NONE_OBSERVED":
+                errors.append(
+                    f"T3 supporting evidence #{index + 1} requires verifier_failure_state=NONE_OBSERVED"
+                )
+            if not _nonempty(item.get("verifier")):
+                errors.append(f"T3 supporting evidence #{index + 1} requires verifier provenance")
+
+    if risk == "T3" and state == STRONG and claim_type == "current_state":
+        if not _nonempty(record.get("observation_time")):
+            errors.append("T3 current_state SUPPORTED_WITH_SCOPE requires observation_time")
+        for index, item in enumerate(entails):
+            if item["freshness"] != "CURRENT_ENOUGH":
+                errors.append(
+                    f"T3 current_state supporting evidence #{index + 1} requires freshness=CURRENT_ENOUGH"
+                )
 
     return errors
 
