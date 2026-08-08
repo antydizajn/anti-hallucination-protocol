@@ -1,20 +1,22 @@
 #!/usr/bin/env python3
 """Small deterministic verifier for anti-hallucination-protocol.
 
-The script deliberately distinguishes positive evidence, negative evidence, and
-verification failure. It is not a universal theorem prover and must not be used
-to claim more than the selected mode can establish.
+The script distinguishes positive evidence, negative evidence, and verifier
+failure. It is not a semantic theorem prover: FOUND means only that the selected
+narrow check succeeded within its stated scope.
 
 Exit codes:
-  0 = FOUND / verified within the mode's scope
+  0 = FOUND / verified within the selected mode's scope
   1 = NOT_FOUND / check ran successfully but evidence did not match
-  2 = ERROR / invalid invocation, I/O failure, command failure, or verifier error
+  2 = ERROR / invalid invocation, I/O failure, command failure, decoding failure,
+      output-limit failure, or verifier error
 """
 
 from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import subprocess
 import sys
@@ -24,6 +26,7 @@ from typing import NoReturn
 FOUND = 0
 NOT_FOUND = 1
 ERROR = 2
+DEFAULT_MAX_OUTPUT_BYTES = 1_000_000
 
 
 def emit(status: str, *, claim: str, evidence: dict, detail: str) -> None:
@@ -46,35 +49,62 @@ def fail(message: str) -> NoReturn:
     raise SystemExit(ERROR)
 
 
+def _path_kind(path: Path) -> str:
+    try:
+        if path.is_symlink():
+            return "symlink"
+        if path.is_file():
+            return "file"
+        if path.is_dir():
+            return "directory"
+        if os.path.lexists(path):
+            return "other"
+        return "missing"
+    except OSError:
+        return "error"
+
+
 def mode_file_exists(args: argparse.Namespace) -> int:
     path = Path(args.path)
+    claim = f"path exists with required kind {args.kind}: {path}"
     try:
-        exists = path.exists()
+        exists = os.path.lexists(path)
+        kind = _path_kind(path)
     except OSError as exc:
         emit(
             "ERROR",
-            claim=f"path exists: {path}",
+            claim=claim,
             evidence={"path": str(path)},
             detail=f"filesystem check failed: {exc}",
         )
         return ERROR
 
-    if exists:
+    evidence = {"path": str(path), "observed_kind": kind, "required_kind": args.kind}
+    if not exists:
         emit(
-            "FOUND",
-            claim=f"path exists: {path}",
-            evidence={"path": str(path), "kind": "filesystem"},
-            detail="path exists",
+            "NOT_FOUND",
+            claim=claim,
+            evidence=evidence,
+            detail="path does not exist at this exact path",
         )
-        return FOUND
+        return NOT_FOUND
+
+    if args.kind != "any" and kind != args.kind:
+        emit(
+            "NOT_FOUND",
+            claim=claim,
+            evidence=evidence,
+            detail=f"path exists, but observed kind {kind!r} does not match required kind {args.kind!r}",
+        )
+        return NOT_FOUND
 
     emit(
-        "NOT_FOUND",
-        claim=f"path exists: {path}",
-        evidence={"path": str(path), "kind": "filesystem"},
-        detail="path does not exist at this exact path",
+        "FOUND",
+        claim=claim,
+        evidence=evidence,
+        detail="path exists with the required kind",
     )
-    return NOT_FOUND
+    return FOUND
 
 
 def read_text(path: Path) -> tuple[str | None, str | None]:
@@ -86,6 +116,16 @@ def read_text(path: Path) -> tuple[str | None, str | None]:
 
 def mode_file_contains(args: argparse.Namespace) -> int:
     path = Path(args.path)
+    if not path.is_file():
+        kind = _path_kind(path)
+        emit(
+            "ERROR",
+            claim=f"file contains pattern: {path}",
+            evidence={"path": str(path), "observed_kind": kind},
+            detail="file-contains requires a regular file",
+        )
+        return ERROR
+
     text, err = read_text(path)
     claim = f"file contains pattern: {path}"
     if err is not None:
@@ -141,6 +181,15 @@ def mode_file_line(args: argparse.Namespace) -> int:
         fail("--line must be >= 1")
 
     path = Path(args.path)
+    if not path.is_file():
+        emit(
+            "ERROR",
+            claim=f"line {args.line} contains expected text: {path}",
+            evidence={"path": str(path), "observed_kind": _path_kind(path)},
+            detail="file-line requires a regular file",
+        )
+        return ERROR
+
     text, err = read_text(path)
     claim = f"line {args.line} contains expected text: {path}"
     if err is not None:
@@ -178,6 +227,13 @@ def mode_file_line(args: argparse.Namespace) -> int:
     return NOT_FOUND
 
 
+def _decode_utf8(data: bytes, stream_name: str) -> tuple[str | None, str | None]:
+    try:
+        return data.decode("utf-8", errors="strict"), None
+    except UnicodeDecodeError as exc:
+        return None, f"{stream_name} is not valid UTF-8: {exc}"
+
+
 def mode_command_output(args: argparse.Namespace) -> int:
     command = list(args.command)
     if not command:
@@ -189,10 +245,18 @@ def mode_command_output(args: argparse.Namespace) -> int:
         completed = subprocess.run(
             command,
             capture_output=True,
-            text=True,
+            text=False,
             timeout=args.timeout,
             check=False,
         )
+    except subprocess.TimeoutExpired as exc:
+        emit(
+            "ERROR",
+            claim="command output contains expected text",
+            evidence={"command": command, "timeout_seconds": args.timeout},
+            detail=f"command exceeded timeout: {exc}",
+        )
+        return ERROR
     except (OSError, subprocess.SubprocessError) as exc:
         emit(
             "ERROR",
@@ -202,13 +266,49 @@ def mode_command_output(args: argparse.Namespace) -> int:
         )
         return ERROR
 
-    output = completed.stdout + completed.stderr
+    stdout_bytes = completed.stdout or b""
+    stderr_bytes = completed.stderr or b""
+    total_bytes = len(stdout_bytes) + len(stderr_bytes)
+    if total_bytes > args.max_output_bytes:
+        emit(
+            "ERROR",
+            claim="command output contains expected text",
+            evidence={
+                "command": command,
+                "returncode": completed.returncode,
+                "captured_output_bytes": total_bytes,
+                "max_output_bytes": args.max_output_bytes,
+            },
+            detail="captured output exceeded verifier limit; output was not accepted as evidence",
+        )
+        return ERROR
+
+    stdout, stdout_err = _decode_utf8(stdout_bytes, "stdout")
+    stderr, stderr_err = _decode_utf8(stderr_bytes, "stderr")
+    decode_error = stdout_err or stderr_err
+    if decode_error is not None:
+        emit(
+            "ERROR",
+            claim="command output contains expected text",
+            evidence={
+                "command": command,
+                "returncode": completed.returncode,
+                "stdout_bytes": len(stdout_bytes),
+                "stderr_bytes": len(stderr_bytes),
+            },
+            detail=decode_error,
+        )
+        return ERROR
+
+    assert stdout is not None and stderr is not None
+    output = stdout + stderr
     evidence = {
         "command": command,
         "returncode": completed.returncode,
+        "required_exit": args.require_exit,
         "expected": args.expected,
-        "stdout": completed.stdout,
-        "stderr": completed.stderr,
+        "stdout": stdout,
+        "stderr": stderr,
     }
 
     if completed.returncode != args.require_exit:
@@ -244,6 +344,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     p_exists = sub.add_parser("file-exists")
     p_exists.add_argument("path")
+    p_exists.add_argument("--kind", choices=["any", "file", "directory", "symlink"], default="any")
     p_exists.set_defaults(func=mode_file_exists)
 
     p_contains = sub.add_parser("file-contains")
@@ -263,6 +364,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_cmd.add_argument("--expected", required=True)
     p_cmd.add_argument("--require-exit", type=int, default=0)
     p_cmd.add_argument("--timeout", type=float, default=30.0)
+    p_cmd.add_argument("--max-output-bytes", type=int, default=DEFAULT_MAX_OUTPUT_BYTES)
     p_cmd.add_argument("command", nargs=argparse.REMAINDER)
     p_cmd.set_defaults(func=mode_command_output)
 
@@ -277,6 +379,8 @@ def main(argv: list[str] | None = None) -> int:
         fail("--max-matches must be >= 1")
     if getattr(args, "timeout", 1.0) <= 0:
         fail("--timeout must be > 0")
+    if getattr(args, "max_output_bytes", 1) < 1:
+        fail("--max-output-bytes must be >= 1")
 
     command = getattr(args, "command", None)
     if command and command[0] == "--":
