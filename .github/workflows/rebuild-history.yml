@@ -40,15 +40,14 @@ jobs:
 
           src="https://x-access-token:${AHP_HISTORY_PAT}@github.com/antydizajn/hermes-skills.git"
           dst="https://x-access-token:${AHP_HISTORY_PAT}@github.com/antydizajn/anti-hallucination-protocol.git"
+          extra_paths=(LICENSE AUDITS/gpt-5.6-sol-v5.4-prompt-review.md)
 
           git clone "$src" "$work/source"
           git clone --branch main "$dst" "$work/current"
 
           echo "=== standalone-only commit candidates ==="
           mapfile -t extra_commits < <(
-            git -C "$work/current" log --reverse --format='%H' -- \
-              LICENSE \
-              AUDITS/gpt-5.6-sol-v5.4-prompt-review.md
+            git -C "$work/current" log --reverse --format='%H' -- "${extra_paths[@]}"
           )
           for commit in "${extra_commits[@]}"; do
             git -C "$work/current" show -s --format='%H %aI %an <%ae> %s' "$commit"
@@ -68,12 +67,12 @@ jobs:
           echo "first filtered version=$first_version"
           test "$first_version" = "2.0.0"
 
-          git remote add current "$work/current"
-          git fetch current main
+          git config user.name "AHP history migration"
+          git config user.email "actions@users.noreply.github.com"
 
           for commit in "${extra_commits[@]}"; do
-            echo "cherry-picking standalone-only commit: $commit"
-            git cherry-pick "$commit"
+            echo "replaying standalone-only paths from commit: $commit"
+            git -C "$work/current" format-patch -1 "$commit" --stdout -- "${extra_paths[@]}" | git am -3
           done
 
           source_tree="$(git rev-parse HEAD^{tree})"
