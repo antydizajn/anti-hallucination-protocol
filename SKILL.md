@@ -1,7 +1,7 @@
 ---
 name: anti-hallucination-protocol
 description: Use when a factual error could materially change a user decision, external action, current-state conclusion, citation, code/runtime claim, research conclusion, or other consequential output. Scales verification by risk and keeps wording no stronger than checked evidence.
-version: 5.3.0
+version: 5.4.0
 author: "Paulina Janowska & Gniewisława AI"
 license: MIT
 platforms: [linux, macos, windows]
@@ -11,7 +11,7 @@ metadata:
     category: software-development
 ---
 
-# Anti-Hallucination Protocol v5.3
+# Anti-Hallucination Protocol v5.4
 
 This skill controls how consequential claims earn strong wording or action.
 
@@ -33,7 +33,7 @@ For consequential claims, remember seven rules:
 6. **For current or high-impact claims, falsify.** Check for supersession, contradiction, wrong entity/version, stale observation and correlated evidence.
 7. **Earn completion wording.** A patch is not a deployment; a deployment is not correctness; a passing unit test is not an observed user path.
 
-For harmless T0/T1 work, do not turn this into ceremony.
+For harmless T0/T1 work, do not turn this into ceremony. For ordinary T2 work, run the hot path and direct claim-matched check only. Load deeper references or helpers when the specific failure mode is relevant, the claim is disputed, or the result is load-bearing.
 
 ## Risk tiers
 
@@ -41,7 +41,7 @@ For harmless T0/T1 work, do not turn this into ceremony.
 |---|---|---|
 | T0 | preference, advice, creative choice | no factual verification unless a material factual premise matters |
 | T1 | stable background knowledge | verify when uncertain, disputed, specific or decision-relevant |
-| T2 | code/file/API/version/repo/current docs/runtime/research/citation/benchmark | direct claim-matched evidence |
+| T2 | code/file/API/version/repo/current docs/runtime/research/citation/benchmark | direct claim-matched evidence; hot path is normally sufficient |
 | T3 | security, legal/compliance, destructive action, production precondition, high-impact publication | direct evidence + explicit falsification + materially independent check when feasible; if a load-bearing check is unavailable, downgrade rather than silently waive it |
 
 Increase verification effort with impact, irreversibility, volatility, numerical precision, unresolved conflict, weak source integrity and downstream blast radius.
@@ -73,7 +73,7 @@ INCONCLUSIVE           -> SUPPORTED_WITH_SCOPE
 CONFLICT               -> silently choose the preferred answer
 ```
 
-`SUPPORTED_WITH_SCOPE` must retain the scope that earned it.
+`SUPPORTED_WITH_SCOPE` must retain the scope that earned it. `CONTRADICTED` means decisive contrary evidence remains and no material supporting `ENTAILS` evidence survives. If both sides survive, use `CONFLICT`.
 
 ## Evidence fitness
 
@@ -104,8 +104,9 @@ Mutable current-state claims need current-state evidence. Historical truth is no
 
 For a strong T3 `current_state` record:
 
-- record an explicit RFC3339 `observation_time`;
+- record an explicit strict RFC3339 `observation_time`;
 - use supporting evidence with `freshness=CURRENT_ENOUGH`;
+- require `integrity=CLEAN_OBSERVED` for supporting evidence;
 - retain source identity, evidence span, retrieval time and verifier provenance;
 - reject materially future timestamps and downgrade when load-bearing freshness is unknown.
 
@@ -121,15 +122,27 @@ Check for wrong environment, wrong target, stale schema, ignored exit code, swal
 
 For tool/API claims, prefer the current exposed schema or registry, then current official primary documentation, then executable/runtime observation when behavior matters. Tool existence does not prove authorization, configuration or successful execution.
 
-Use:
+Bundled helpers are invoked explicitly. Hermes does not make their verdicts an automatic runtime gate merely because the skill is loaded.
 
-- `scripts/verify_claim.py` for narrow deterministic filesystem/text/command checks;
-- `scripts/check_evidence_record.py` for schema + deterministic evidence-record invariants;
-- `scripts/check_research_provenance.py` for offline repository-internal research identity consistency;
-- `scripts/check_v5_integrity.py` for repository/frontmatter integrity;
-- `scripts/liveness_check.sh` for portable L1/L2 presence and self-checks.
+When Hermes skill template substitution is enabled, use the resolved skill directory rather than assuming the current working directory. Example:
+
+```bash
+python3 ${HERMES_SKILL_DIR}/scripts/check_evidence_record.py record.json
+```
+
+Helper contracts:
+
+- `scripts/verify_claim.py` - narrow deterministic filesystem/text/command checks;
+- `scripts/check_evidence_record.py` - schema + deterministic evidence-record invariants;
+- `scripts/check_research_provenance.py` - offline repository-internal research identity consistency;
+- `scripts/check_v5_integrity.py` - exact v5.4.0 repository/frontmatter integrity;
+- `scripts/liveness_check.sh` - portable L1/L2 presence and self-checks.
+
+`check_evidence_record.py` fails if the canonical schema gains an assertion keyword the checker does not implement. Silently ignoring a new schema constraint would make the checker weaker than the schema it claims to validate.
 
 A successful `check_evidence_record.py` result is `STRUCTURALLY_VALID`, not semantic truth.
+
+If a helper cannot be executed in the active environment, the policy layer still applies. Report deterministic validation as **not performed** rather than silently treating helper unavailability as a pass.
 
 ## Completion and recovery
 
@@ -154,18 +167,18 @@ When a material claim is wrong:
 
 Deep rules and examples live outside the active hot path:
 
-- `references/evidence-state-model.md` - ClaimRecord/EvidenceRecord semantics and T3 fields
-- `references/evidence-record.schema.json` - machine-readable evidence record contract
-- `references/adversarial-cases.md` - 30 protocol-level attack cases
-- `references/verification-harness-traps.md` - false-positive verifier patterns
-- `references/stale-bug-and-done-work-verification.md` - stale bug reports and already-completed work
-- `references/fix-target-liveness.md` - verify that the proposed fix target is still live
-- `references/self-capability-honesty.md` - capability/access claims
-- `references/multi-judge-ensemble.md` - correlated judges and fake independence
-- `references/vetting-external-project-claims.md` - external project verification workflow
-- `references/research-foundations.md` - research foundations and v4 mapping
-- `references/v5-gap-map.md` - v5 research-to-control mapping
-- `references/v5-research-manifest.json` - canonical v5 research source identities
+- `references/evidence-state-model.md` - load for ClaimRecord/EvidenceRecord semantics, T3 fields or state aggregation disputes;
+- `references/evidence-record.schema.json` - load when producing or auditing a machine-readable evidence record;
+- `references/adversarial-cases.md` - load when red-teaming protocol behavior;
+- `references/verification-harness-traps.md` - load when a checker, script or test result may be a false positive;
+- `references/stale-bug-and-done-work-verification.md` - load for stale bug reports or possibly already-completed work;
+- `references/fix-target-liveness.md` - load before changing a fix target whose current liveness is uncertain;
+- `references/self-capability-honesty.md` - load for capability/access claims;
+- `references/multi-judge-ensemble.md` - load when multiple agents/judges appear to provide consensus;
+- `references/vetting-external-project-claims.md` - load when evaluating external project claims;
+- `references/research-foundations.md` - load when auditing research foundations or v4 mappings;
+- `references/v5-gap-map.md` - load when auditing why a v5 control exists;
+- `references/v5-research-manifest.json` - load when checking canonical v5 source identities.
 
 The research bibliography is intentionally not duplicated here. Canonical source identities belong in the manifests/reference layer, not in every Level-1 skill load.
 
