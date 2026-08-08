@@ -1,12 +1,17 @@
 #!/usr/bin/env python3
-"""Offline structural integrity checker for Anti-Hallucination Protocol v5.1.
+"""Offline structural integrity checker for Anti-Hallucination Protocol v5.x.
 
-This validates repository-local structure and a conservative subset of the
-SKILL.md YAML frontmatter used by this skill. It does not validate research
-truth, semantic entailment, web availability, or Hermes runtime behavior.
+This validates repository-local structure and the deliberately narrow
+frontmatter profile used by this skill. It is NOT a general YAML validator and
+must not be described as one. It rejects malformed constructs that could make
+our simple metadata extraction disagree with Hermes, including unterminated
+quoted/flow scalars in top-level values.
 
-A PASS must not be interpreted as "the skill is correct". It means only that
-the checked structural contract is internally consistent.
+It does not validate research truth, semantic entailment, web availability, or
+Hermes runtime behavior.
+
+A PASS means only that the checked structural contract is internally
+consistent.
 """
 
 from __future__ import annotations
@@ -16,7 +21,7 @@ import re
 import sys
 from pathlib import Path
 
-EXPECTED_VERSION = "5.1.0"
+VERSION_RE = re.compile(r"^5\.\d+\.\d+$")
 REQUIRED_FRONTMATTER_KEYS = {
     "name",
     "description",
@@ -41,9 +46,12 @@ REQUIRED_PATHS = [
     "scripts/verify_claim.py",
     "scripts/check_research_provenance.py",
     "scripts/check_evidence_record.py",
+    "scripts/liveness_check.sh",
     "tests/test_verify_claim.py",
     "tests/test_research_provenance.py",
     "tests/test_evidence_record.py",
+    "tests/test_v5_integrity.py",
+    "tests/test_liveness.py",
     "tests/adversarial_cases.md",
 ]
 REQUIRED_STATES = [
@@ -76,12 +84,27 @@ NESTED_RE = re.compile(r"^(?P<indent>\s+)(?:[A-Za-z_][A-Za-z0-9_-]*):(.*)$")
 LIST_RE = re.compile(r"^\s+-\s+.+$")
 
 
-def parse_frontmatter(text: str) -> tuple[dict[str, str], str, list[str]]:
-    """Parse the deliberately simple YAML subset used by this SKILL.md.
+def _scalar_shape_error(value: str) -> str | None:
+    if not value:
+        return None
+    if value[0] in {'"', "'"} and (len(value) < 2 or value[-1] != value[0]):
+        return "unterminated quoted scalar"
+    if value.startswith("[") and not value.endswith("]"):
+        return "unterminated flow sequence"
+    if value.startswith("{") and not value.endswith("}"):
+        return "unterminated flow mapping"
+    if value.endswith("]") and not value.startswith("["):
+        return "unexpected closing flow-sequence bracket"
+    if value.endswith("}") and not value.startswith("{"):
+        return "unexpected closing flow-mapping brace"
+    return None
 
-    This is not a general YAML parser. It is fail-closed for the frontmatter
-    shape used here: top-level mappings, nested mappings/lists, quoted/plain
-    scalar values, and bracket lists. Body text is never searched for metadata.
+
+def parse_frontmatter(text: str) -> tuple[dict[str, str], str, list[str]]:
+    """Parse only the frontmatter profile used by this repository.
+
+    Body text is never searched for metadata. This intentionally does not claim
+    compatibility with arbitrary YAML syntax.
     """
 
     errors: list[str] = []
@@ -106,18 +129,21 @@ def parse_frontmatter(text: str) -> tuple[dict[str, str], str, list[str]]:
                 errors.append(f"frontmatter line {lineno}: nested value has no parent key")
                 continue
             if not (NESTED_RE.match(raw) or LIST_RE.match(raw)):
-                errors.append(f"frontmatter line {lineno}: unsupported or malformed YAML syntax")
+                errors.append(f"frontmatter line {lineno}: unsupported or malformed nested syntax")
             continue
 
         match = TOP_LEVEL_RE.match(raw)
         if not match:
-            errors.append(f"frontmatter line {lineno}: malformed top-level YAML mapping")
+            errors.append(f"frontmatter line {lineno}: malformed top-level mapping")
             current_top = None
             continue
         key = match.group("key")
         value = (match.group("value") or "").strip()
         if key in values:
             errors.append(f"frontmatter line {lineno}: duplicate top-level key {key!r}")
+        shape_error = _scalar_shape_error(value)
+        if shape_error:
+            errors.append(f"frontmatter line {lineno}: {shape_error}")
         values[key] = value
         current_top = key
 
@@ -155,9 +181,9 @@ def validate(root: Path) -> list[str]:
             errors.append(
                 f"SKILL.md frontmatter name is {name!r}; expected 'anti-hallucination-protocol'"
             )
-        if version != EXPECTED_VERSION:
+        if not VERSION_RE.fullmatch(version):
             errors.append(
-                f"SKILL.md frontmatter version is {version!r}; expected {EXPECTED_VERSION!r}"
+                f"SKILL.md frontmatter version is {version!r}; expected semantic v5 version like '5.2.0'"
             )
 
     for rel in REQUIRED_PATHS:
