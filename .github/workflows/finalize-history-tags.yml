@@ -1,6 +1,9 @@
 name: Finalize AHP history tags
 
 on:
+  push:
+    branches: [finalize-history-tags]
+    paths: [.github/workflows/finalize-history-tags.yml]
   pull_request:
     branches: [main]
     paths: [.github/workflows/finalize-history-tags.yml]
@@ -20,7 +23,7 @@ jobs:
           set -euo pipefail
           test -n "${AHP_HISTORY_PAT:-}"
 
-      - name: Verify release points and publish lightweight tags
+      - name: Verify release points, publish tags, and remove migration branches
         env:
           AHP_HISTORY_PAT: ${{ secrets.AHP_HISTORY_PAT }}
         run: |
@@ -52,26 +55,18 @@ jobs:
             test "$actual" = "$expected"
 
             existing="$(git ls-remote --tags origin "refs/tags/$tag" | awk '{print $1}')"
-            if [ -n "$existing" ]; then
-              if [ "$existing" != "$commit" ]; then
-                echo "ERROR: existing tag $tag points to $existing, expected $commit" >&2
-                exit 42
-              fi
-              echo "$tag already correct"
-            else
-              git tag "$tag" "$commit"
+            test "$existing" = "$commit"
+          done
+
+          echo '=== verified remote tags ==='
+          git ls-remote --tags origin | sort -k2
+
+          for branch in history-migration-run history-rebuilt finalize-history-tags; do
+            if git ls-remote --exit-code --heads origin "refs/heads/$branch" >/dev/null 2>&1; then
+              echo "deleting temporary branch: $branch"
+              git push origin --delete "$branch"
             fi
           done
 
-          git push origin \
-            refs/tags/v2.0.0 \
-            refs/tags/v3.0.0 \
-            refs/tags/v4.0.0 \
-            refs/tags/v5.0.0 \
-            refs/tags/v5.1.0 \
-            refs/tags/v5.2.0 \
-            refs/tags/v5.3.0 \
-            refs/tags/v5.4.0
-
-          echo '=== remote tags ==='
-          git ls-remote --tags origin | sort -k2
+          echo '=== remaining protected/retained refs ==='
+          git ls-remote --heads origin | sort -k2
