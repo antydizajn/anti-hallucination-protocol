@@ -1,16 +1,12 @@
 name: Rebuild AHP history
 
 on:
-  push:
-    branches:
-      - history-migration-run
-    paths:
-      - .github/workflows/rebuild-history.yml
   pull_request:
     branches:
       - main
     paths:
       - .github/workflows/rebuild-history.yml
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -19,23 +15,34 @@ jobs:
   rebuild:
     runs-on: ubuntu-latest
     steps:
+      - name: Require cross-repo migration token
+        env:
+          AHP_HISTORY_PAT: ${{ secrets.AHP_HISTORY_PAT }}
+        run: |
+          set -euo pipefail
+          if [ -z "${AHP_HISTORY_PAT:-}" ]; then
+            echo "ERROR: repository secret AHP_HISTORY_PAT is required." >&2
+            echo "It must have read access to antydizajn/hermes-skills and write access to antydizajn/anti-hallucination-protocol." >&2
+            exit 78
+          fi
+
       - name: Install git-filter-repo
         run: python3 -m pip install --disable-pip-version-check git-filter-repo
 
       - name: Rebuild subtree history and verify final tree
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          AHP_HISTORY_PAT: ${{ secrets.AHP_HISTORY_PAT }}
         run: |
           set -euo pipefail
-
-          git config --global user.name "AHP history migration"
-          git config --global user.email "actions@users.noreply.github.com"
 
           work="$(mktemp -d)"
           echo "workdir=$work"
 
-          git clone https://github.com/antydizajn/hermes-skills.git "$work/source"
-          git clone --branch main https://x-access-token:${GH_TOKEN}@github.com/antydizajn/anti-hallucination-protocol.git "$work/current"
+          src="https://x-access-token:${AHP_HISTORY_PAT}@github.com/antydizajn/hermes-skills.git"
+          dst="https://x-access-token:${AHP_HISTORY_PAT}@github.com/antydizajn/anti-hallucination-protocol.git"
+
+          git clone "$src" "$work/source"
+          git clone --branch main "$dst" "$work/current"
 
           cd "$work/source"
           git filter-repo --force \
@@ -58,13 +65,13 @@ jobs:
 
           if [ "$source_tree" != "$current_tree" ]; then
             echo "ERROR: filtered hermes-skills subtree does not match current standalone main" >&2
-            echo "=== name/status diff ===" >&2
-            git --no-pager diff --no-index --name-status "$work/source" "$work/current" || true
+            echo "=== file-level diff ===" >&2
+            diff -qr --exclude=.git "$work/source" "$work/current" || true
             exit 42
           fi
 
           echo "Final trees are identical. Publishing candidate history branch only."
-          git remote add standalone "https://x-access-token:${GH_TOKEN}@github.com/antydizajn/anti-hallucination-protocol.git"
+          git remote add standalone "$dst"
           git push --force standalone HEAD:refs/heads/history-rebuilt
 
           echo "history-rebuilt pushed successfully"
