@@ -6,7 +6,7 @@
 
 **Make the agent earn the sentence.**
 
-[![Version](https://img.shields.io/badge/version-5.1.0-black?style=flat-square)](SKILL.md)
+[![Version](https://img.shields.io/badge/version-5.2.0-black?style=flat-square)](SKILL.md)
 [![Hermes Skill](https://img.shields.io/badge/Hermes-Agent-111111?style=flat-square)](https://github.com/NousResearch/hermes-agent)
 [![License](https://img.shields.io/badge/license-MIT-black?style=flat-square)](#license)
 [![Adversarial](https://img.shields.io/badge/verification-adversarial-black?style=flat-square)](tests/adversarial_cases.md)
@@ -49,14 +49,15 @@ No ceremony for harmless creative work. More friction where being wrong actually
 |---|---|
 | Real URL, wrong claim | Separates source identity from entailment |
 | Copied sources posing as consensus | Tracks lineage and independent failure domains |
+| Self-declared "independence" | Requires an auditable lineage basis for strong T3 records |
 | Tool error disguised as absence | Keeps `ERROR` separate from `NOT_FOUND_WITHIN_SCOPE` |
-| Stale current-state claim | Requires freshness appropriate to the claim |
+| Stale current-state claim | Requires explicit observation time and current-enough evidence for strong T3 current-state records |
 | Prompt injection inside evidence | Treats retrieved content as data, not instruction authority |
 | Passing test, wrong user path | Separates unit validation from E2E / observed behavior |
 | Verifier false positive | Treats the verifier result as another claim to challenge |
 | Compacted session denial | Checks durable traces before claiming an earlier action never happened |
 
-There are 30 protocol-level attack cases in [`tests/adversarial_cases.md`](tests/adversarial_cases.md).
+There are 30 protocol-level attack cases in [`tests/adversarial_cases.md`](tests/adversarial_cases.md), plus executable regression tests for verifier failures found during adversarial review.
 
 ---
 
@@ -120,6 +121,8 @@ verifier state
 
 That distinction is the core of the project.
 
+For a strong T3 record, a label like `INDEPENDENT_ORIGIN` is not enough. The record must carry an auditable basis for that lineage assessment. For T3 current-state claims, stale or unknown freshness cannot be promoted into current truth by setting a stronger final state.
+
 ---
 
 ## Deterministic checks
@@ -158,21 +161,31 @@ It rejects, among other things:
 - unknown lineage / integrity / entailment values;
 - contaminated evidence used for a strong supported verdict;
 - a `CONFLICT` record with only one side of the conflict;
-- a strong T3 verdict with no explicitly independent supporting origin.
+- strong T3 evidence with `source_class=unknown`;
+- strong T3 evidence without source identity, evidence span, retrieval time or verifier provenance;
+- self-declared independent lineage without a verified, non-empty lineage basis;
+- strong T3 current-state records without `observation_time` or `CURRENT_ENOUGH` evidence.
 
-It does **not** prove that prose semantically entails a claim.
+It does **not** prove that prose semantically entails a claim, that a source identity is true, or that two sources are genuinely independent. Those are evidence problems outside the JSON validator.
 
 ### `check_v5_integrity.py`
 
-Checks repository-local structure and the actual `SKILL.md` frontmatter.
+Checks repository-local structure and the deliberately narrow frontmatter profile used by this skill.
 
-A stray `version: 5.1.0` string in the body does not count as valid metadata.
+It is **not a general YAML validator**. It rejects malformed constructs relevant to this repository, keeps metadata separate from body text, and accepts semantic `5.x.y` versions without hard-coding every patch release.
 
 ### `check_research_provenance.py`
 
-Checks the internal consistency of the curated arXiv manifest, `SKILL.md` and research mapping.
+Checks offline identity consistency for both research layers:
+
+- the original curated arXiv corpus;
+- the v5 research list via [`references/v5-research-manifest.json`](references/v5-research-manifest.json) and [`references/v5-gap-map.md`](references/v5-gap-map.md).
 
 It is deliberately offline. A local PASS is not a claim that every external resource is currently reachable or that every interpretation remains correct forever.
+
+### `liveness_check.sh`
+
+Checks the portable L1/L2 installation contract and exits nonzero when a required check fails. Optional legacy telemetry remains informational, and behavioral enforcement remains explicitly `UNKNOWN` because files on disk cannot prove that an LLM followed the protocol.
 
 ---
 
@@ -210,6 +223,7 @@ In chat, an installed skill can also be loaded explicitly by its slash command o
 python3 -m pytest tests/ -v
 python3 scripts/check_v5_integrity.py --root .
 python3 scripts/check_research_provenance.py --root .
+bash scripts/liveness_check.sh
 ```
 
 The adversarial Markdown corpus is a specification, not an executable behavioral benchmark. A green unit suite does not prove that an LLM follows the protocol under long-context pressure.
@@ -232,7 +246,7 @@ The curated material includes work around:
 - long-context evidence loss;
 - agent-loop progress mirages.
 
-The full mapping is in [`references/research-foundations.md`](references/research-foundations.md) and [`references/v5-gap-map.md`](references/v5-gap-map.md).
+The full mapping is in [`references/research-foundations.md`](references/research-foundations.md) and [`references/v5-gap-map.md`](references/v5-gap-map.md). The v5 source identities are mirrored in [`references/v5-research-manifest.json`](references/v5-research-manifest.json) so title/URL drift is testable offline.
 
 Research is evidence for design choices, not decoration. The protocol can still be wrong.
 
@@ -246,7 +260,8 @@ It also does not prove that:
 
 - retrieved content is safe;
 - a reputable source is correct;
-- two agents are independent;
+- two agents or sources are independent because a record says so;
+- an `INDEPENDENT_ORIGIN` lineage basis is factually correct without inspecting that basis;
 - an LLM judge is unbiased;
 - search was exhaustive;
 - memory contains current truth;
@@ -265,19 +280,24 @@ This is a protocol for making unsupported certainty harder, not impossible.
 anti-hallucination-protocol/
 ├── SKILL.md
 ├── README.md
+├── assets/
+│   └── anti-hallucination-eye.svg
 ├── references/
 │   ├── evidence-record.schema.json
 │   ├── evidence-state-model.md
 │   ├── research-foundations.md
+│   ├── v5-research-manifest.json
 │   ├── untrusted-evidence-boundary.md
 │   └── ...
 ├── scripts/
 │   ├── verify_claim.py
 │   ├── check_evidence_record.py
 │   ├── check_research_provenance.py
-│   └── check_v5_integrity.py
+│   ├── check_v5_integrity.py
+│   └── liveness_check.sh
 └── tests/
     ├── adversarial_cases.md
+    ├── test_liveness.py
     └── test_*.py
 ```
 
