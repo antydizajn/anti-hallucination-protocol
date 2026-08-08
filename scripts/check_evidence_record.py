@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """Deterministic validator for Anti-Hallucination Protocol evidence records.
 
-The validator has two layers:
+The validator has three layers:
 
-1. validate the record against references/evidence-record.schema.json;
-2. validate protocol state invariants that JSON Schema cannot express cleanly.
+1. reject schema keywords the checker does not implement;
+2. validate the record against references/evidence-record.schema.json;
+3. validate deterministic cross-field invariants.
 
 It does not decide whether prose evidence truly entails a claim, whether a
 source identity is factually correct, or whether two sources are truly
@@ -13,14 +14,15 @@ declared machine-readable contract and implemented deterministic invariants.
 
 Exit codes:
   0 = STRUCTURALLY_VALID: schema + deterministic invariants passed
-  1 = one or more validation rules failed
-  2 = invocation / I/O / JSON / schema-loading error
+  1 = one or more record validation rules failed
+  2 = invocation / I/O / JSON / unsupported-schema error
 """
 
 from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -30,6 +32,26 @@ STRONG = "SUPPORTED_WITH_SCOPE"
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_SCHEMA = ROOT / "references" / "evidence-record.schema.json"
 MAX_CLOCK_SKEW = timedelta(minutes=5)
+RFC3339_RE = re.compile(
+    r"^\d{4}-\d{2}-\d{2}[Tt]\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:[Zz]|[+-]\d{2}:\d{2})$"
+)
+
+# This checker deliberately implements a small JSON Schema subset. Failing on
+# an unknown keyword is safer than silently ignoring a future assertion.
+SUPPORTED_SCHEMA_KEYS = {
+    "$schema",
+    "$id",
+    "title",
+    "description",
+    "type",
+    "enum",
+    "required",
+    "properties",
+    "additionalProperties",
+    "items",
+    "minItems",
+    "minLength",
+}
 
 
 def _matches_type(value: Any, expected: str) -> bool:
@@ -48,6 +70,35 @@ def _matches_type(value: Any, expected: str) -> bool:
     if expected == "boolean":
         return isinstance(value, bool)
     return False
+
+
+def validate_schema_definition(schema: Any, path: str = "$schema") -> list[str]:
+    """Reject schema constructs this deterministic checker would ignore."""
+
+    if not isinstance(schema, dict):
+        return [f"{path}: schema node must be an object"]
+
+    errors: list[str] = []
+    for key in schema:
+        if key not in SUPPORTED_SCHEMA_KEYS:
+            errors.append(f"{path}: unsupported schema keyword {key!r}")
+
+    properties = schema.get("properties")
+    if properties is not None:
+        if not isinstance(properties, dict):
+            errors.append(f"{path}.properties: must be an object")
+        else:
+            for key, child in properties.items():
+                if not isinstance(key, str):
+                    errors.append(f"{path}.properties: property names must be strings")
+                    continue
+                errors.extend(validate_schema_definition(child, f"{path}.properties.{key}"))
+
+    items = schema.get("items")
+    if items is not None:
+        errors.extend(validate_schema_definition(items, f"{path}.items"))
+
+    return errors
 
 
 def validate_schema(instance: Any, schema: dict[str, Any], path: str = "$") -> list[str]:
@@ -105,6 +156,9 @@ def load_schema(path: Path = DEFAULT_SCHEMA) -> dict[str, Any]:
     data = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(data, dict):
         raise ValueError("evidence schema must be a JSON object")
+    definition_errors = validate_schema_definition(data)
+    if definition_errors:
+        raise ValueError("; ".join(definition_errors))
     return data
 
 
@@ -116,10 +170,15 @@ def _parse_rfc3339(value: Any) -> datetime | None:
     if not _nonempty(value):
         return None
     text = value.strip()
-    if text.endswith("Z"):
-        text = text[:-1] + "+00:00"
+    if not RFC3339_RE.fullmatch(text):
+        return None
+    normalized = text
+    if normalized.endswith(("Z", "z")):
+        normalized = normalized[:-1] + "+00:00"
+    if "t" in normalized:
+        normalized = normalized.replace("t", "T", 1)
     try:
-        parsed = datetime.fromisoformat(text)
+        parsed = datetime.fromisoformat(normalized)
     except ValueError:
         return None
     if parsed.tzinfo is None:
@@ -130,19 +189,23 @@ def _parse_rfc3339(value: Any) -> datetime | None:
 def _validate_timestamp(value: Any, label: str, *, reject_future: bool = False) -> list[str]:
     parsed = _parse_rfc3339(value)
     if parsed is None:
-        return [f"{label} must be an RFC3339 timestamp with timezone"]
+        return [f"{label} must be a strict RFC3339 timestamp with timezone"]
     if reject_future and parsed > datetime.now(timezone.utc) + MAX_CLOCK_SKEW:
         return [f"{label} cannot be materially in the future"]
     return []
 
 
 def validate(record: dict[str, Any], schema: dict[str, Any] | None = None) -> list[str]:
-    errors: list[str] = []
     schema = schema if schema is not None else load_schema()
+    definition_errors = validate_schema_definition(schema)
+    if definition_errors:
+        return definition_errors
+
     schema_errors = validate_schema(record, schema)
     if schema_errors:
         return schema_errors
 
+    errors: list[str] = []
     evidence = record["evidence"]
     state = record["state"]
     risk = record["risk_tier"]
@@ -161,12 +224,14 @@ def validate(record: dict[str, Any], schema: dict[str, Any] | None = None) -> li
     if state == STRONG and contradictions:
         errors.append("SUPPORTED_WITH_SCOPE cannot coexist with CONTRADICTS evidence")
     if state == STRONG and contaminated:
-        errors.append("SUPPORTED_WITH_SCOPE cannot rely on CONTAMINATED evidence")
+        errors.append("SUPPORTED_WITH_SCOPE cannot retain CONTAMINATED evidence as support")
     if state == STRONG and failed_verifiers:
         errors.append("SUPPORTED_WITH_SCOPE cannot rely on evidence whose verifier FAILED")
 
     if state == "CONTRADICTED" and not contradictions:
         errors.append("CONTRADICTED requires at least one CONTRADICTS evidence item")
+    if state == "CONTRADICTED" and entails:
+        errors.append("CONTRADICTED cannot coexist with surviving ENTAILS evidence; use CONFLICT when both sides remain")
     if state == "CONFLICT" and (not entails or not contradictions):
         errors.append("CONFLICT requires both supporting and contradicting evidence")
     if state == "NOT_FOUND_WITHIN_SCOPE" and entails:
@@ -205,6 +270,10 @@ def validate(record: dict[str, Any], schema: dict[str, Any] | None = None) -> li
             errors.append("T3 SUPPORTED_WITH_SCOPE cannot rely on source_class=unknown")
 
         for index, item in enumerate(entails):
+            if item["integrity"] != "CLEAN_OBSERVED":
+                errors.append(
+                    f"T3 supporting evidence #{index + 1} requires integrity=CLEAN_OBSERVED"
+                )
             if not _nonempty(item.get("source_identity")):
                 errors.append(f"T3 supporting evidence #{index + 1} requires source_identity")
             if not _nonempty(item.get("evidence_span")):
