@@ -19,12 +19,18 @@ It does not guarantee truth. It controls when a claim is allowed to graduate fro
 
 > **Core invariant:** a strong verdict requires an evidence path whose identity, relevance, freshness, integrity, entailment, scope, and failure state are adequate for the claim being made.
 
-Research maps:
+Core supporting artifacts:
 
-- `references/research-foundations.md` - v4 arXiv corpus and design mapping
-- `references/v5-gap-map.md` - 2025-2026 internet research and v4 -> v5 failure map
+- `references/research-foundations.md` - verified v4 arXiv corpus and design mapping
+- `references/v5-gap-map.md` - current internet research and v4 -> v5 failure map
 - `references/evidence-state-model.md` - conceptual ClaimRecord/EvidenceRecord model
 - `references/untrusted-evidence-boundary.md` - prompt-injection and evidence-control boundary
+- `references/evidence-record.schema.json` - optional machine-readable evidence-record contract
+- `scripts/verify_claim.py` - deterministic verifier for narrow supported modes
+- `scripts/check_evidence_record.py` - semantic guard against false strong evidence states
+- `scripts/check_research_provenance.py` - offline provenance consistency checker
+- `scripts/check_v5_integrity.py` - structural integrity checker for this subtree
+- `tests/adversarial_cases.md` - protocol-level attack corpus
 
 ---
 
@@ -172,27 +178,21 @@ CONFLICT               -> pick preferred answer silently
 Before a consequential source is used, ask:
 
 ### A. Identity
-
 Is this the intended artifact/entity/version?
 
 ### B. Relevance
-
 Does it address the actual claim rather than merely the topic?
 
 ### C. Freshness
-
 Is it current enough for this claim?
 
 ### D. Integrity
-
 Could the source or retrieval path be contaminated, manipulated, truncated, or attacker-controlled?
 
 ### E. Lineage / independence
-
 Is this an independent origin or a copy/syndication of another source?
 
 ### F. Scope
-
 What exactly can this source establish, and what remains unknown?
 
 A prestigious domain answers none of these automatically.
@@ -362,6 +362,7 @@ Look for:
 Do not treat a more capable judge as an oracle merely because it is larger.
 
 Use `scripts/verify_claim.py` only within the scope of its deterministic modes.
+Use `scripts/check_evidence_record.py` only for deterministic state invariants; it does not prove semantic entailment.
 
 ---
 
@@ -405,29 +406,15 @@ When the success signal is external, use external/world-state evidence whenever 
 ## 14. Numerical, temporal, entity and quote claims
 
 ### Numerical
-
-Check:
-
-- measured vs estimated,
-- numerator/denominator,
-- units and conversions,
-- aggregation,
-- subset/sample,
-- run/version,
-- rounding and transformation.
+Check measured vs estimated values, numerator/denominator, units/conversions, aggregation, subset/sample, run/version, rounding and transformations.
 
 ### Temporal/current
-
-Record or state the observation time when freshness is material.
-
-Newest is not automatically correct, but stale evidence cannot establish a current mutable fact.
+Record or state the observation time when freshness is material. Newest is not automatically correct, but stale evidence cannot establish a current mutable fact.
 
 ### Entity
-
 Disambiguate namesakes, users vs organizations, package/model/version collisions and renamed components before transferring evidence.
 
 ### Quotes
-
 Use exact source text. Never put quotation marks around a remembered paraphrase.
 
 ---
@@ -556,7 +543,7 @@ For T3/load-bearing claims add:
 
 ---
 
-## 21. Evidence ledger - use only when complexity justifies it
+## 21. Evidence ledger and deterministic controls
 
 For complex T3 or disputed T2 work, maintain a compact ledger:
 
@@ -566,15 +553,58 @@ CLAIM | STATE | EVIDENCE | FRESHNESS | LINEAGE | CONTRADICTION | RESIDUAL UNKNOW
 
 Do not expose internal chain-of-thought. The ledger records externally auditable claims/evidence, not hidden reasoning.
 
-See `references/evidence-state-model.md`.
+Use when justified by complexity:
+
+- conceptual semantics: `references/evidence-state-model.md`
+- optional JSON contract: `references/evidence-record.schema.json`
+- semantic state checker: `scripts/check_evidence_record.py`
+- repository integrity checker: `scripts/check_v5_integrity.py`
+- attack corpus: `tests/adversarial_cases.md`
+
+These deterministic helpers validate narrow invariants. None of them can establish semantic truth by themselves.
 
 ---
 
 ## 22. Research provenance
 
-The v4 verified arXiv corpus remains in `references/arxiv-manifest.json` and `references/research-foundations.md`.
+### Verified v4 arXiv corpus retained directly in the skill
 
-Key v5 additions checked during the 2026-08-08 internet research pass:
+1. [Survey of Hallucination in Natural Language Generation - arXiv:2202.03629](https://arxiv.org/abs/2202.03629)
+2. [TruthfulQA: Measuring How Models Mimic Human Falsehoods - arXiv:2109.07958](https://arxiv.org/abs/2109.07958)
+3. [Siren's Song in the AI Ocean: A Survey on Hallucination in Large Language Models - arXiv:2309.01219](https://arxiv.org/abs/2309.01219)
+4. [A Survey on Hallucination in Large Language Models: Principles, Taxonomy, Challenges, and Open Questions - arXiv:2311.05232](https://arxiv.org/abs/2311.05232)
+5. [RARR: Researching and Revising What Language Models Say, Using Language Models - arXiv:2210.08726](https://arxiv.org/abs/2210.08726)
+6. [Chain-of-Verification Reduces Hallucination in Large Language Models - arXiv:2309.11495](https://arxiv.org/abs/2309.11495)
+7. [SelfCheckGPT: Zero-Resource Black-Box Hallucination Detection for Generative Large Language Models - arXiv:2303.08896](https://arxiv.org/abs/2303.08896)
+8. [Retrieving, Rethinking and Revising: The Chain-of-Verification Can Improve Retrieval Augmented Generation - arXiv:2410.05801](https://arxiv.org/abs/2410.05801)
+9. [FELM: Benchmarking Factuality Evaluation of Large Language Models - arXiv:2310.00741](https://arxiv.org/abs/2310.00741)
+10. [Long-form factuality in large language models - arXiv:2403.18802](https://arxiv.org/abs/2403.18802)
+11. [VERISCORE: Evaluating the factuality of verifiable claims in long-form text generation - arXiv:2406.19276](https://arxiv.org/abs/2406.19276)
+12. [MAD-Fact: A Multi-Agent Debate Framework for Long-Form Factuality Evaluation in LLMs - arXiv:2510.22967](https://arxiv.org/abs/2510.22967)
+13. [Corrective Retrieval Augmented Generation - arXiv:2401.15884](https://arxiv.org/abs/2401.15884)
+14. [Self-RAG: Learning to Retrieve, Generate, and Critique through Self-Reflection - arXiv:2310.11511](https://arxiv.org/abs/2310.11511)
+15. [CRITIC: Large Language Models Can Self-Correct with Tool-Interactive Critiquing - arXiv:2305.11738](https://arxiv.org/abs/2305.11738)
+16. [FActScore: Fine-grained Atomic Evaluation of Factual Precision in Long Form Text Generation - arXiv:2305.14251](https://arxiv.org/abs/2305.14251)
+17. [FacTool: Factuality Detection in Generative AI -- A Tool Augmented Framework for Multi-Task and Multi-Domain Scenarios - arXiv:2307.13528](https://arxiv.org/abs/2307.13528)
+18. [MiniCheck: Efficient Fact-Checking of LLMs on Grounding Documents - arXiv:2404.10774](https://arxiv.org/abs/2404.10774)
+19. [Self-Refine: Iterative Refinement with Self-Feedback - arXiv:2303.17651](https://arxiv.org/abs/2303.17651)
+20. [Large Language Models Cannot Self-Correct Reasoning Yet - arXiv:2310.01798](https://arxiv.org/abs/2310.01798)
+21. [Reflexion: Language Agents with Verbal Reinforcement Learning - arXiv:2303.11366](https://arxiv.org/abs/2303.11366)
+22. [ReAct: Synergizing Reasoning and Acting in Language Models - arXiv:2210.03629](https://arxiv.org/abs/2210.03629)
+23. [Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks - arXiv:2005.11401](https://arxiv.org/abs/2005.11401)
+24. [Active Retrieval Augmented Generation - arXiv:2305.06983](https://arxiv.org/abs/2305.06983)
+25. [QAFactEval: Improved QA-Based Factual Consistency Evaluation for Summarization - arXiv:2112.08542](https://arxiv.org/abs/2112.08542)
+26. [SummaC: Re-Visiting NLI-based Models for Inconsistency Detection in Summarization - arXiv:2111.09525](https://arxiv.org/abs/2111.09525)
+27. [Evaluating the Factual Consistency of Abstractive Text Summarization - arXiv:1910.12840](https://arxiv.org/abs/1910.12840)
+28. [Language Models (Mostly) Know What They Know - arXiv:2207.05221](https://arxiv.org/abs/2207.05221)
+29. [Teaching Models to Express Their Uncertainty in Words - arXiv:2205.14334](https://arxiv.org/abs/2205.14334)
+30. [Semantic Uncertainty: Linguistic Invariances for Uncertainty Estimation in Natural Language Generation - arXiv:2302.09664](https://arxiv.org/abs/2302.09664)
+31. [HaluEval: A Large-Scale Hallucination Evaluation Benchmark for Large Language Models - arXiv:2305.11747](https://arxiv.org/abs/2305.11747)
+32. [Enabling Large Language Models to Generate Text with Citations - arXiv:2305.14627](https://arxiv.org/abs/2305.14627)
+
+Design mapping and read-scope notes: `references/research-foundations.md`.
+
+### Key v5 additions from the 2026-08-08 research pass
 
 - FactBench: A Dynamic Benchmark for In-the-Wild Language Model Factuality Evaluation - https://aclanthology.org/2025.acl-long.1587/
 - Beyond Facts: Evaluating Intent Hallucination in Large Language Models - https://aclanthology.org/2025.acl-long.349/
