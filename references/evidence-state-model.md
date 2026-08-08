@@ -29,11 +29,9 @@ residual_unknowns
 
 ## EvidenceRecord
 
-Minimum conceptual fields:
+For complicated T2 or consequential T3 work, an auditable evidence item can need:
 
 ```text
-evidence_id
-claim_id
 source_uri_or_pointer
 source_class
 source_identity
@@ -43,6 +41,8 @@ freshness_status
 authority_basis
 integrity_status
 lineage_or_origin
+lineage_basis
+lineage_verification
 independence_group
 evidence_span
 entailment_status
@@ -54,7 +54,34 @@ verifier_status
 notes
 ```
 
-Do not invent values for fields that cannot be established. Use `UNKNOWN` explicitly.
+Do not invent values for fields that cannot be established. Use `UNKNOWN` explicitly and downgrade the verdict when an unknown is load-bearing.
+
+The JSON schema is intentionally a storage/shape contract. `scripts/check_evidence_record.py` adds cross-field invariants that depend on risk tier and claim type.
+
+## Strong T3 contract
+
+A strong T3 `SUPPORTED_WITH_SCOPE` verdict must not be earned by labels alone.
+
+For supporting evidence, v5.2 requires an auditable source identity, evidence span, retrieval time, verifier provenance and a clean observed verifier state. `source_class=unknown` cannot earn a strong T3 verdict.
+
+If an item is labelled `INDEPENDENT_ORIGIN`, that label alone is not evidence. A strong T3 verdict requires:
+
+```text
+lineage = INDEPENDENT_ORIGIN
+lineage_verification = VERIFIED
+lineage_basis = non-empty auditable basis
+```
+
+The deterministic checker can verify that these fields are present and internally consistent. It cannot prove that the asserted provenance is true. That remains an external evidence problem.
+
+For T3 `current_state`, a strong verdict additionally requires:
+
+```text
+observation_time = explicit observation time
+freshness = CURRENT_ENOUGH
+```
+
+A stale or unknown freshness state cannot be promoted to current truth merely because another field says `SUPPORTED_WITH_SCOPE`.
 
 ## Evidence states
 
@@ -129,7 +156,7 @@ Strong independence can come from materially different failure domains, for exam
 - two primary measurements by separate systems,
 - positive evidence + active falsification via a different mechanism.
 
-Independence is a judgment and can be `UNKNOWN`; never fabricate provenance to improve the count.
+Independence remains a provenance judgment. `VERIFIED` means there is an auditable basis for that judgment, not that a string field has magically made two sources independent.
 
 ## Source classes
 
@@ -154,7 +181,7 @@ No class is automatically true. The class influences what claims it can reasonab
 
 ## Claim-state aggregation
 
-A claim may be `SUPPORTED` only when all load-bearing requirements are satisfied within a declared scope.
+A claim may be `SUPPORTED_WITH_SCOPE` only when all load-bearing requirements are satisfied within a declared scope.
 
 A conservative aggregation sketch:
 
@@ -214,4 +241,4 @@ The protocol does not claim perfect step attribution. The purpose is to force th
 
 Because that would make the skill unusable.
 
-Use the full state model for T3 or complicated T2 claims. For low-risk claims, keep only fields needed to prevent the likely failure. This selective use is a **HEURISTIC** consistent with v4's adaptive verification budget.
+Use the full state model for T3 or complicated T2 claims. For low-risk claims, keep only fields needed to prevent the likely failure. This selective use is a **HEURISTIC** consistent with the adaptive verification budget.
