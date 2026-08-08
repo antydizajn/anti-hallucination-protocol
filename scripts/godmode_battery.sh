@@ -3,9 +3,9 @@
 #
 # This script is retained for existing installations that still have the old
 # ~/.hermes/scripts/anti_halluc corpus + hard_assert.py stack. It is NOT part of
-# the portable v5.3 correctness/liveness contract.
+# the portable v5.4 correctness/liveness contract.
 #
-# Safety changes in v5.3:
+# Safety changes introduced in v5.3 and retained in v5.4:
 #   - read-only by default;
 #   - no implicit calibration.jsonl append;
 #   - prints attempted/skipped/errors separately;
