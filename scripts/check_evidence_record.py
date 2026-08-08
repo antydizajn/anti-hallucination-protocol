@@ -41,7 +41,6 @@ def validate(record: dict) -> list[str]:
     contradictions = [e for e in evidence if e.get("entailment") == "CONTRADICTS"]
     contaminated = [e for e in evidence if e.get("integrity") == "CONTAMINATED"]
     failed_verifiers = [e for e in evidence if e.get("verifier_failure_state") == "FAILED"]
-    unknown_scope_signals = [e for e in evidence if e.get("entailment") in {"UNCLEAR", "IRRELEVANT"}]
 
     if state == STRONG and not entails:
         errors.append("SUPPORTED_WITH_SCOPE requires at least one ENTAILS evidence item")
@@ -55,9 +54,8 @@ def validate(record: dict) -> list[str]:
     if state == "CONTRADICTED" and not contradictions:
         errors.append("CONTRADICTED requires at least one CONTRADICTS evidence item")
 
-    if state == "CONFLICT":
-        if not entails or not contradictions:
-            errors.append("CONFLICT requires both supporting and contradicting evidence")
+    if state == "CONFLICT" and (not entails or not contradictions):
+        errors.append("CONFLICT requires both supporting and contradicting evidence")
 
     if state == "NOT_FOUND_WITHIN_SCOPE" and entails:
         errors.append("NOT_FOUND_WITHIN_SCOPE cannot coexist with ENTAILS evidence")
@@ -67,26 +65,16 @@ def validate(record: dict) -> list[str]:
     ):
         errors.append("ERROR state should record at least one FAILED verifier")
 
-    if risk == "T3" and state == STRONG:
-        lineages = {
-            e.get("lineage")
-            for e in entails
-            if e.get("lineage") in {"INDEPENDENT_ORIGIN", "SHARED_ORIGIN", "DERIVED_COPY", "UNKNOWN"}
-        }
-        if lineages <= {"DERIVED_COPY", "SHARED_ORIGIN"}:
+    if risk == "T3" and state == STRONG and entails:
+        # We do not invent a universal two-source rule. We do require that a strong
+        # T3 verdict cannot pretend shared/copied/unknown lineage is independent.
+        has_independent_origin = any(
+            e.get("lineage") == "INDEPENDENT_ORIGIN" for e in entails
+        )
+        if not has_independent_origin:
             errors.append(
                 "T3 SUPPORTED_WITH_SCOPE has no supporting evidence marked as an independent origin"
             )
-        if all(e.get("lineage") == "UNKNOWN" for e in entails):
-            errors.append(
-                "T3 SUPPORTED_WITH_SCOPE cannot claim independence when all supporting lineage is UNKNOWN"
-            )
-
-    # A strong verdict dominated by unclear/irrelevant evidence is suspicious even if one
-    # item entails. Do not fail solely because weak extra evidence exists, but require the
-    # strong evidence to outnumber zero - already guaranteed above. This comment documents
-    # why we intentionally avoid a fake quantitative threshold here.
-    _ = unknown_scope_signals
 
     return errors
 
