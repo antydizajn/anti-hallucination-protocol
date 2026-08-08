@@ -1,17 +1,16 @@
 #!/usr/bin/env python3
-"""Offline structural integrity checker for Anti-Hallucination Protocol v5.x.
+"""Repository-local integrity checker for Anti-Hallucination Protocol v5.x.
 
-This validates repository-local structure and the deliberately narrow
-frontmatter profile used by this skill. It is NOT a general YAML validator and
-must not be described as one. It rejects malformed constructs that could make
-our simple metadata extraction disagree with Hermes, including unterminated
-quoted/flow scalars in top-level values.
+Frontmatter acceptance is intentionally based on a real YAML parse, not a
+home-grown approximation. This prevents the integrity checker from certifying
+frontmatter that Hermes/PyYAML would reject or interpret differently.
 
-It does not validate research truth, semantic entailment, web availability, or
-Hermes runtime behavior.
+The checker still validates only a narrow repository contract. It does not
+validate research truth, semantic entailment, web availability, or Hermes
+runtime behavior.
 
-A PASS means only that the checked structural contract is internally
-consistent.
+A PASS means only that the checked repository structure and metadata contract
+are internally consistent.
 """
 
 from __future__ import annotations
@@ -20,6 +19,12 @@ import argparse
 import re
 import sys
 from pathlib import Path
+from typing import Any
+
+try:
+    import yaml
+except ImportError:  # pragma: no cover - environment failure, not a data case
+    yaml = None
 
 VERSION_RE = re.compile(r"^5\.\d+\.\d+$")
 REQUIRED_FRONTMATTER_KEYS = {
@@ -44,6 +49,7 @@ REQUIRED_PATHS = [
     "references/self-capability-honesty.md",
     "references/multi-judge-ensemble.md",
     "references/vetting-external-project-claims.md",
+    "references/adversarial-cases.md",
     "scripts/verify_claim.py",
     "scripts/check_research_provenance.py",
     "scripts/check_evidence_record.py",
@@ -77,85 +83,48 @@ ACTIVE_REFERENCES = [
     "references/self-capability-honesty.md",
     "references/multi-judge-ensemble.md",
     "references/vetting-external-project-claims.md",
+    "references/adversarial-cases.md",
 ]
 
 LOCAL_MD_LINK_RE = re.compile(r"\[[^\]]+\]\((?!https?://)([^)#]+)(?:#[^)]+)?\)")
 BACKTICK_REF_RE = re.compile(r"`((?:references|scripts|tests)/[^`]+)`")
-TOP_LEVEL_RE = re.compile(r"^(?P<key>[A-Za-z_][A-Za-z0-9_-]*):(?:\s*(?P<value>.*))?$")
-NESTED_RE = re.compile(r"^(?P<indent>\s+)(?:[A-Za-z_][A-Za-z0-9_-]*):(.*)$")
-LIST_RE = re.compile(r"^\s+-\s+.+$")
+TOP_LEVEL_KEY_RE = re.compile(r"^(?P<key>[A-Za-z_][A-Za-z0-9_-]*):", re.MULTILINE)
 
 
-def _scalar_shape_error(value: str) -> str | None:
-    if not value:
-        return None
-    if value[0] in {'"', "'"} and (len(value) < 2 or value[-1] != value[0]):
-        return "unterminated quoted scalar"
-    if value.startswith("[") and not value.endswith("]"):
-        return "unterminated flow sequence"
-    if value.startswith("{") and not value.endswith("}"):
-        return "unterminated flow mapping"
-    if value.endswith("]") and not value.startswith("["):
-        return "unexpected closing flow-sequence bracket"
-    if value.endswith("}") and not value.startswith("{"):
-        return "unexpected closing flow-mapping brace"
-    return None
-
-
-def parse_frontmatter(text: str) -> tuple[dict[str, str], str, list[str]]:
-    """Parse only the frontmatter profile used by this repository.
-
-    Body text is never searched for metadata. This intentionally does not claim
-    compatibility with arbitrary YAML syntax.
-    """
-
-    errors: list[str] = []
+def split_frontmatter(text: str) -> tuple[str, str, list[str]]:
     if not text.startswith("---\n"):
-        return {}, text, ["SKILL.md must begin with YAML frontmatter delimiter '---'"]
-
+        return "", text, ["SKILL.md must begin with YAML frontmatter delimiter '---'"]
     closing = text.find("\n---\n", 4)
     if closing < 0:
-        return {}, text, ["SKILL.md YAML frontmatter has no closing '---' delimiter"]
+        return "", text, ["SKILL.md YAML frontmatter has no closing '---' delimiter"]
+    return text[4:closing], text[closing + 5 :], []
 
-    front = text[4:closing]
-    body = text[closing + 5 :]
-    values: dict[str, str] = {}
-    current_top: str | None = None
 
-    for lineno, raw in enumerate(front.splitlines(), start=2):
-        if not raw.strip() or raw.lstrip().startswith("#"):
-            continue
+def parse_frontmatter(text: str) -> tuple[dict[str, Any], str, list[str]]:
+    """Parse frontmatter with PyYAML and reject ambiguous top-level duplicates."""
 
-        if raw[0].isspace():
-            if current_top is None:
-                errors.append(f"frontmatter line {lineno}: nested value has no parent key")
-                continue
-            if not (NESTED_RE.match(raw) or LIST_RE.match(raw)):
-                errors.append(f"frontmatter line {lineno}: unsupported or malformed nested syntax")
-            continue
+    front, body, errors = split_frontmatter(text)
+    if errors:
+        return {}, body, errors
+    if yaml is None:
+        return {}, body, ["PyYAML is required for Hermes-compatible frontmatter validation"]
 
-        match = TOP_LEVEL_RE.match(raw)
-        if not match:
-            errors.append(f"frontmatter line {lineno}: malformed top-level mapping")
-            current_top = None
-            continue
+    try:
+        data = yaml.safe_load(front)
+    except yaml.YAMLError as exc:
+        return {}, body, [f"SKILL.md frontmatter is not valid YAML: {exc}"]
+
+    if not isinstance(data, dict):
+        return {}, body, ["SKILL.md frontmatter must parse to a mapping/object"]
+
+    seen: set[str] = set()
+    for match in TOP_LEVEL_KEY_RE.finditer(front):
         key = match.group("key")
-        value = (match.group("value") or "").strip()
-        if key in values:
-            errors.append(f"frontmatter line {lineno}: duplicate top-level key {key!r}")
-        shape_error = _scalar_shape_error(value)
-        if shape_error:
-            errors.append(f"frontmatter line {lineno}: {shape_error}")
-        values[key] = value
-        current_top = key
+        if key in seen:
+            errors.append(f"SKILL.md frontmatter has duplicate top-level key: {key}")
+        seen.add(key)
 
-    return values, body, errors
-
-
-def unquote_scalar(value: str) -> str:
-    if len(value) >= 2 and value[0] == value[-1] and value[0] in {'"', "'"}:
-        return value[1:-1]
-    return value
+    return data, body, errors
 
 
 def validate(root: Path) -> list[str]:
@@ -177,16 +146,26 @@ def validate(root: Path) -> list[str]:
         errors.append(f"SKILL.md frontmatter missing required key: {key}")
 
     if frontmatter:
-        name = unquote_scalar(frontmatter.get("name", ""))
-        version = unquote_scalar(frontmatter.get("version", ""))
+        name = frontmatter.get("name")
+        version = frontmatter.get("version")
         if name != "anti-hallucination-protocol":
             errors.append(
                 f"SKILL.md frontmatter name is {name!r}; expected 'anti-hallucination-protocol'"
             )
-        if not VERSION_RE.fullmatch(version):
+        if not isinstance(version, str) or not VERSION_RE.fullmatch(version):
             errors.append(
-                f"SKILL.md frontmatter version is {version!r}; expected semantic v5 version like '5.2.0'"
+                f"SKILL.md frontmatter version is {version!r}; expected semantic v5 version like '5.3.0'"
             )
+
+        platforms = frontmatter.get("platforms")
+        if not isinstance(platforms, list) or not platforms or not all(
+            isinstance(item, str) and item.strip() for item in platforms
+        ):
+            errors.append("SKILL.md frontmatter platforms must be a non-empty string list")
+
+        metadata = frontmatter.get("metadata")
+        if not isinstance(metadata, dict) or not isinstance(metadata.get("hermes"), dict):
+            errors.append("SKILL.md frontmatter metadata.hermes must be a mapping")
 
     for rel in REQUIRED_PATHS:
         if not (root / rel).is_file():
