@@ -39,36 +39,6 @@ def test_wrong_canonical_url_is_rejected():
     assert any("non-canonical URL" in e for e in errors)
 
 
-def test_correct_id_with_wrong_title_fails_skill_comparison():
-    p = paper("2305.14251", "Canonical Title")
-    skill = "[Wrong Title - arXiv:2305.14251](https://arxiv.org/abs/2305.14251)"
-    errors = mod.compare_skill_to_manifest([p], skill)
-    assert any("title mismatch" in e for e in errors)
-
-
-def test_manifest_paper_missing_from_skill_is_rejected():
-    p = paper("2305.14251", "Canonical Title")
-    errors = mod.compare_skill_to_manifest([p], "no research citations here")
-    assert any("SKILL.md missing manifest paper" in e for e in errors)
-
-
-def test_duplicate_skill_citation_is_rejected():
-    p = paper("2305.14251", "Canonical Title")
-    entry = "[Canonical Title - arXiv:2305.14251](https://arxiv.org/abs/2305.14251)"
-    errors = mod.compare_skill_to_manifest([p], entry + "\n" + entry)
-    assert any("expected exactly once" in e for e in errors)
-
-
-def test_unmanifested_skill_paper_is_rejected():
-    p = paper("2305.14251", "Canonical Title")
-    skill = (
-        "[Canonical Title - arXiv:2305.14251](https://arxiv.org/abs/2305.14251)\n"
-        "[Phantom provenance - arXiv:9999.99999](https://arxiv.org/abs/9999.99999)"
-    )
-    errors = mod.compare_skill_to_manifest([p], skill)
-    assert any("not present in manifest" in e for e in errors)
-
-
 def test_foundations_must_contain_exact_manifest_reference_once():
     p = paper("2305.14251", "Canonical Title")
     missing = mod.compare_foundations_to_manifest([p], "nothing")
@@ -79,15 +49,6 @@ def test_foundations_must_contain_exact_manifest_reference_once():
 
     duplicate = mod.compare_foundations_to_manifest([p], exact + "\n" + exact)
     assert any("expected 1" in e for e in duplicate)
-
-
-def test_happy_path_for_one_v4_entry():
-    p = paper("2305.14251", "Canonical Title")
-    skill = "[Canonical Title - arXiv:2305.14251](https://arxiv.org/abs/2305.14251)"
-    foundations = "[2305.14251](https://arxiv.org/abs/2305.14251)"
-    assert mod.validate_manifest([p], minimum=1) == []
-    assert mod.compare_skill_to_manifest([p], skill) == []
-    assert mod.compare_foundations_to_manifest([p], foundations) == []
 
 
 def test_v5_gap_exact_manifest_order_passes():
@@ -111,7 +72,7 @@ def test_v5_gap_wrong_title_for_same_arxiv_id_fails():
         "Reliable Post-Retrieval Assembly for Agent Memory: Separating Evidence Extraction from Policy Execution - arXiv:2606.01435: https://arxiv.org/abs/2606.01435"
     ]
     gap = """## New research sources used for v5
-1. Don't Ask the LLM to Track Freshness: A Deterministic Recipe for Memory Conflict Resolution - arXiv:2606.01435: https://arxiv.org/abs/2606.01435
+1. Different title - arXiv:2606.01435: https://arxiv.org/abs/2606.01435
 ## What v5 must NOT claim
 """
     errors = mod.compare_v5_gap_to_manifest(displays, gap)
@@ -124,8 +85,7 @@ def test_v5_gap_missing_source_fails():
 1. A: https://example.com/a
 ## What v5 must NOT claim
 """
-    errors = mod.compare_v5_gap_to_manifest(displays, gap)
-    assert errors
+    assert mod.compare_v5_gap_to_manifest(displays, gap)
 
 
 def test_v5_manifest_loader_rejects_missing_display(tmp_path: Path):
@@ -137,3 +97,20 @@ def test_v5_manifest_loader_rejects_missing_display(tmp_path: Path):
         assert "display" in str(exc)
     else:
         raise AssertionError("invalid v5 manifest should fail")
+
+
+def test_skill_requires_all_canonical_research_pointers():
+    text = "\n".join(mod.CANONICAL_SKILL_POINTERS)
+    assert mod.validate_skill_pointers(text) == []
+
+
+def test_skill_missing_canonical_pointer_fails():
+    text = "\n".join(mod.CANONICAL_SKILL_POINTERS[:-1])
+    errors = mod.validate_skill_pointers(text)
+    assert any("missing canonical research pointer" in e for e in errors)
+
+
+def test_inline_bibliography_is_not_required_in_active_skill():
+    text = "\n".join(mod.CANONICAL_SKILL_POINTERS)
+    assert "arXiv:2305.14251" not in text
+    assert mod.validate_skill_pointers(text) == []
