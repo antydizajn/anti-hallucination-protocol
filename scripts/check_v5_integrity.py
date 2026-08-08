@@ -34,6 +34,7 @@ REQUIRED_FRONTMATTER_KEYS = {
 REQUIRED_PATHS = [
     "references/research-foundations.md",
     "references/v5-gap-map.md",
+    "references/v5-research-manifest.json",
     "references/evidence-state-model.md",
     "references/untrusted-evidence-boundary.md",
     "references/evidence-record.schema.json",
@@ -67,6 +68,7 @@ REQUIRED_STATES = [
 ACTIVE_REFERENCES = [
     "references/research-foundations.md",
     "references/v5-gap-map.md",
+    "references/v5-research-manifest.json",
     "references/evidence-state-model.md",
     "references/untrusted-evidence-boundary.md",
     "references/verification-harness-traps.md",
