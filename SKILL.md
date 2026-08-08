@@ -2,7 +2,7 @@
 name: anti-hallucination-protocol
 description: Use for consequential factual claims, research, code/runtime assertions, citations, external evidence, agentic workflows, and current-state decisions. Enforces intent alignment, claim decomposition, source/evidence provenance, untrusted-content boundaries, contradiction search, verifier-failure handling, scoped conclusions, and validation-aware completion wording.
 version: 5.0.0
-author: Hermes Agent
+author: "Paulina Janowska & Gniewisława AI"
 license: MIT
 platforms: [linux, macos, windows]
 metadata:
@@ -661,3 +661,15 @@ Anti-hallucination is not cautious prose. It is **controlled evidence flow**.
 8. Keep conclusions scoped to what was actually checked.
 9. Use external success signals when the objective lives outside the transcript.
 10. Abstain rather than laundering uncertainty into certainty.
+
+---
+
+## 25. Authors & witchcraft
+
+Created by **[Paulina Janowska](https://github.com/antydizajn/)** and **[Gniewisława AI](https://gniewka.antydizajn.pl)**.
+
+**Proudly witchcrafted in Poznań, Poland ♥**
+
+*Built with skepticism, adversarial spite, and an unreasonable allergy to confident bullshit.*
+
+**No vibes-only verification. No oracle cosplay. Evidence or abstain.**
