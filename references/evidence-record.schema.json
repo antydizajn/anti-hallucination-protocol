@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://antydizajn.local/hermes/anti-hallucination/evidence-record.schema.json",
-  "title": "Anti-Hallucination v5 Evidence Record",
-  "description": "Optional machine-readable record for consequential T2/T3 verification. It records auditable evidence state, not hidden reasoning.",
+  "title": "Anti-Hallucination v5.2 Evidence Record",
+  "description": "Optional machine-readable record for consequential T2/T3 verification. It records auditable evidence state, not hidden reasoning. Strong T3 verdicts are subject to additional semantic invariants in scripts/check_evidence_record.py.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -38,18 +38,31 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["source", "source_class", "entailment", "integrity", "lineage"],
+        "required": [
+          "source",
+          "source_class",
+          "freshness",
+          "integrity",
+          "lineage",
+          "lineage_verification",
+          "entailment",
+          "verifier_failure_state"
+        ],
         "properties": {
           "source": {"type": "string", "minLength": 1},
           "source_class": {
             "type": "string",
             "enum": ["primary", "secondary", "runtime", "repository", "memory", "user_provided", "tool_output", "unknown"]
           },
+          "source_identity": {"type": ["string", "null"]},
           "evidence_span": {"type": ["string", "null"]},
           "retrieved_at": {"type": ["string", "null"]},
           "freshness": {"type": "string", "enum": ["CURRENT_ENOUGH", "STALE", "UNKNOWN", "NOT_APPLICABLE"]},
           "integrity": {"type": "string", "enum": ["CLEAN_OBSERVED", "SUSPECT", "CONTAMINATED", "UNKNOWN"]},
           "lineage": {"type": "string", "enum": ["INDEPENDENT_ORIGIN", "DERIVED_COPY", "SHARED_ORIGIN", "UNKNOWN"]},
+          "lineage_basis": {"type": ["string", "null"]},
+          "lineage_verification": {"type": "string", "enum": ["VERIFIED", "HEURISTIC", "UNKNOWN"]},
+          "independence_group": {"type": ["string", "null"]},
           "entailment": {"type": "string", "enum": ["ENTAILS", "PARTIAL", "CONTRADICTS", "IRRELEVANT", "UNCLEAR"]},
           "verifier": {"type": ["string", "null"]},
           "verifier_failure_state": {"type": "string", "enum": ["NONE_OBSERVED", "SUSPECT", "FAILED", "UNKNOWN"]}
