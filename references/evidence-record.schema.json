@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://antydizajn.local/hermes/anti-hallucination/evidence-record.schema.json",
-  "title": "Anti-Hallucination v5.4.1 Evidence Record",
+  "title": "Anti-Hallucination v5.4.2 Evidence Record",
   "description": "Optional machine-readable record for consequential T2/T3 verification. It records auditable evidence state, not hidden reasoning. Additional deterministic cross-field invariants in scripts/check_evidence_record.py include scoped absence, non-whitespace core identifiers, T3 lineage consistency, and current-state requirements.",
   "type": "object",
   "additionalProperties": false,
