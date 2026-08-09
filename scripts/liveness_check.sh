@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# liveness_check.sh - check whether the installed v5.4 skill and its narrow
+# liveness_check.sh - check whether the installed v5.4.1 skill and its narrow
 # deterministic verifier are actually present and runnable.
 #
 # Required portable checks are L1/L2. Any failure or inability to execute a
@@ -20,10 +20,10 @@ fail_required() {
   STATUS=1
 }
 
-printf '==== anti-hallucination v5.4 liveness - %s ====\n' "$(date '+%Y-%m-%d %H:%M:%S %Z')"
+printf '==== anti-hallucination v5.4.1 liveness - %s ====\n' "$(date '+%Y-%m-%d %H:%M:%S %Z')"
 
 echo
-echo "L1. Installed skill and deterministic self-test:"
+echo "L1. Installed skill and deterministic self-tests:"
 if [ -f "$SKILL_DIR/SKILL.md" ]; then
   echo "  [OK]   SKILL.md present"
 else
@@ -37,13 +37,24 @@ else
 fi
 
 if ! command -v python3 >/dev/null 2>&1; then
-  fail_required "python3 unavailable; required verifier self-test cannot run"
+  fail_required "python3 unavailable; required verifier self-tests cannot run"
 elif [ ! -f "$VERIFY" ]; then
-  fail_required "verifier unavailable; required self-test cannot run"
-elif python3 "$VERIFY" file-exists "$SKILL_DIR/SKILL.md" --kind file >/dev/null 2>&1; then
-  echo "  [OK]   verify_claim.py self-test passed on installed SKILL.md"
+  fail_required "verifier unavailable; required self-tests cannot run"
 else
-  fail_required "verify_claim.py self-test failed"
+  python3 "$VERIFY" file-exists "$SKILL_DIR/SKILL.md" --kind file >/dev/null 2>&1
+  EXISTS_CODE=$?
+  python3 "$VERIFY" file-contains "$SKILL_DIR/SKILL.md" "anti-hallucination-protocol" >/dev/null 2>&1
+  CONTAINS_CODE=$?
+  python3 "$VERIFY" file-contains "$SKILL_DIR/SKILL.md" "" >/dev/null 2>&1
+  EMPTY_CONTAINS_CODE=$?
+  python3 "$VERIFY" file-line "$SKILL_DIR/SKILL.md" 1 "" >/dev/null 2>&1
+  EMPTY_LINE_CODE=$?
+
+  if [ "$EXISTS_CODE" -eq 0 ] && [ "$CONTAINS_CODE" -eq 0 ] && [ "$EMPTY_CONTAINS_CODE" -eq 2 ] && [ "$EMPTY_LINE_CODE" -eq 2 ]; then
+    echo "  [OK]   verify_claim.py self-tests passed (existence, content, empty-match rejection)"
+  else
+    fail_required "verify_claim.py self-test failed (exists=$EXISTS_CODE contains=$CONTAINS_CODE empty_contains=$EMPTY_CONTAINS_CODE empty_line=$EMPTY_LINE_CODE)"
+  fi
 fi
 
 echo
@@ -53,9 +64,9 @@ if ! command -v python3 >/dev/null 2>&1; then
 elif [ ! -f "$INTEGRITY" ]; then
   fail_required "check_v5_integrity.py unavailable: $INTEGRITY"
 elif python3 "$INTEGRITY" --root "$SKILL_DIR" >/dev/null 2>&1; then
-  echo "  [OK]   v5.4 repository-local integrity checker passed"
+  echo "  [OK]   v5.4.1 repository-local integrity checker passed"
 else
-  fail_required "v5.4 repository-local integrity checker failed"
+  fail_required "v5.4.1 repository-local integrity checker failed"
 fi
 
 echo
@@ -70,9 +81,9 @@ if [ -f "$LEGACY_CALIB" ]; then
   else
     echo "  [INFO] legacy calibration.jsonl exists; mtime unavailable"
   fi
-  echo "  [INFO] this legacy log is not part of v5.4's portable correctness contract"
+  echo "  [INFO] this legacy log is not part of v5.4.1's portable correctness contract"
 else
-  echo "  [INFO] no legacy calibration pipeline detected - this is not a v5.4 failure"
+  echo "  [INFO] no legacy calibration pipeline detected - this is not a v5.4.1 failure"
 fi
 
 echo

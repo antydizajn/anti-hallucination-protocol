@@ -6,7 +6,7 @@
 
 **Make the agent earn the sentence.**
 
-[![Version](https://img.shields.io/badge/version-5.4.0-black?style=flat-square)](SKILL.md)
+[![Version](https://img.shields.io/badge/version-5.4.1-black?style=flat-square)](SKILL.md)
 [![Hermes Skill](https://img.shields.io/badge/Hermes-Agent-111111?style=flat-square)](https://github.com/NousResearch/hermes-agent)
 [![License](https://img.shields.io/badge/license-MIT-black?style=flat-square)](#license)
 [![Adversarial](https://img.shields.io/badge/verification-adversarial-black?style=flat-square)](references/adversarial-cases.md)
@@ -61,7 +61,7 @@ The canonical protocol attack corpus is in [`references/adversarial-cases.md`](r
 
 ## How it works
 
-The active v5.4 skill keeps the seven-rule hot path introduced in v5.3 and tightens the machine-checkable contracts around it.
+The active v5.4.1 skill keeps the seven-rule hot path introduced in v5.3 and tightens deterministic boundaries discovered by the v5.4 audit round. It does not expand the policy architecture.
 
 The protocol models the full control flow as:
 
@@ -115,7 +115,9 @@ verifier state
 
 A source can be authoritative and stale. A citation can point to the right paper and still fail to support the attached sentence. Multiple URLs can share one origin.
 
-For strong T3 machine-readable records, supporting evidence must be `CLEAN_OBSERVED`, and verified independent support carries `lineage_basis`, `lineage_verification` and `independence_group`. The checker can detect internal contradictions such as reused declared groups. It cannot prove that two real sources are genuinely independent.
+For strong T3 machine-readable records, supporting evidence must be `CLEAN_OBSERVED`, and verified independent support carries `lineage_basis`, `lineage_verification` and `independence_group`. The checker detects duplicate declared groups and also rejects the obvious internal contradiction of reusing the same declared `source` or `source_identity` under different independence groups. It still cannot prove that two real sources are genuinely independent.
+
+`NOT_FOUND_WITHIN_SCOPE` requires an explicit non-empty scope. A scoped absence verdict without a declared search boundary is not structurally valid.
 
 ---
 
@@ -135,7 +137,7 @@ NOT_FOUND   exit 1
 ERROR       exit 2
 ```
 
-A failed command cannot become `FOUND` merely because its output contains the expected substring.
+A failed command cannot become `FOUND` merely because its output contains the expected substring. Empty match strings are rejected instead of exploiting the fact that an empty Python string is contained in every string. Command output is matched within stdout or stderr individually, so a synthetic match cannot be assembled across the stream boundary.
 
 ### `check_evidence_record.py`
 
@@ -145,14 +147,14 @@ For strong T3 records it checks, among other things:
 
 - known source class;
 - source identity and evidence span;
-- strict RFC3339 retrieval timestamps;
+- RFC3339-profile retrieval timestamps with timezone;
 - `integrity=CLEAN_OBSERVED` for supporting evidence;
 - verifier provenance and clean observed verifier state;
 - verified independent lineage metadata;
-- non-empty `independence_group` and no duplicate declared group among verified independent supporting items;
-- explicit strict RFC3339 observation time and `CURRENT_ENOUGH` evidence for T3 current-state claims.
+- non-empty `independence_group`, no duplicate declared group, and no obvious same-source/same-identity reuse across distinct declared independent groups;
+- explicit RFC3339-profile observation time and `CURRENT_ENOUGH` evidence for T3 current-state claims.
 
-The checker also rejects a canonical schema containing an assertion keyword it does not implement. Silently ignoring a future schema constraint would create a false validation path.
+The checker also rejects a canonical schema containing an assertion keyword or schema form it does not implement. Silently ignoring a future schema constraint would create a false validation path.
 
 A successful result is:
 
@@ -164,7 +166,7 @@ That means exactly what it says. It does **not** establish semantic entailment, 
 
 ### `check_v5_integrity.py`
 
-Checks repository structure and parses `SKILL.md` frontmatter with real YAML rather than a hand-written YAML approximation. The v5.4 checker pins the exact public release version `5.4.0`, so a different v5 release cannot silently receive the same release-integrity PASS.
+Checks repository structure and parses `SKILL.md` frontmatter with real YAML rather than a hand-written YAML approximation. The v5.4.1 checker pins the exact public release version `5.4.1`, so a different v5 release cannot silently receive the same release-integrity PASS. Required support files are resolved inside the skill root so a symlink escape cannot satisfy the integrity contract merely by existing on disk.
 
 ### `check_research_provenance.py`
 
@@ -186,7 +188,25 @@ Place the skill directory at:
 ~/.hermes/skills/software-development/anti-hallucination-protocol/
 ```
 
-Then start a new Hermes session and verify discovery using the currently available Hermes skill tooling.
+### Mandatory startup integration
+
+Installing the files is **not** the same thing as activating the protocol for a session. Add Anti-Hallucination Protocol to the startup/boot procedure that runs at the beginning of **every Hermes session**, before ordinary task work begins.
+
+If your workspace uses a `/start` skill or equivalent boot skill, edit that procedure so its minimal boot explicitly loads:
+
+```text
+skill_view(name="anti-hallucination-protocol")
+```
+
+A healthy boot should visibly include a successful skill load comparable to:
+
+```text
+📚 skill  anti-hallucination-protocol
+```
+
+Load AHP alongside other baseline session controls such as identity/memory and anti-sycophancy policy. Do not rely on the skill merely existing under `~/.hermes/skills/`; if the startup log does not show that it was loaded, treat it as **installed but not active for startup**.
+
+After wiring the startup procedure, start a completely new Hermes session and verify that AHP is loaded during boot. The exact surrounding boot sequence is workspace-specific; the invariant is that `anti-hallucination-protocol` is explicitly loaded before consequential work starts.
 
 ---
 
@@ -200,6 +220,8 @@ python3 scripts/check_v5_integrity.py --root .
 python3 scripts/check_research_provenance.py --root .
 AHP_SKILL_DIR="$(pwd)" bash scripts/liveness_check.sh
 ```
+
+The repository also includes GitHub Actions regression CI across supported Python test environments. A green CI run establishes only the checked executable contracts, not model obedience or semantic truth.
 
 When the skill is loaded in Hermes and template substitution is enabled, a bundled checker can also be invoked without current-directory assumptions, for example:
 
@@ -223,15 +245,15 @@ The full research identity/mapping layer lives outside the main skill prompt:
 - [`references/v5-research-manifest.json`](references/v5-research-manifest.json)
 - [`references/v5-gap-map.md`](references/v5-gap-map.md)
 
-Research is evidence for design choices, not decoration and not proof that the implementation is correct.
+Research is evidence for design choices, not decoration and not proof that the implementation is correct. Where an arXiv paper changes title across versions, the repository should either cite the current identity or pin the exact paper version used by the design record.
 
 ---
 
 ## Audit trail
 
-The v5.2 multi-model audit corpus and synthesis are archived under [`AUDITS/`](AUDITS/).
+The multi-model audit corpus and synthesis are archived under [`AUDITS/`](AUDITS/).
 
-`AUDITS/SUMMARY.md` separates execution-capable Hermes audits from Perplexity document-only audits, records conflicts and rejected severity claims, and tracks how findings were dispositioned in later releases.
+`AUDITS/SUMMARY.md` separates execution-capable audits from document/static reviews, records conflicts and rejected severity claims, and tracks how findings were dispositioned in later releases. Auditor count is not treated as truth; reproduced failure mechanisms outrank model votes.
 
 ---
 
@@ -264,6 +286,7 @@ This is a protocol for making unsupported certainty harder, not impossible.
 anti-hallucination-protocol/
 ├── SKILL.md
 ├── README.md
+├── .github/workflows/ci.yml
 ├── AUDITS/
 │   ├── SUMMARY.md
 │   └── ...audit reports
@@ -284,6 +307,7 @@ anti-hallucination-protocol/
 │   └── liveness_check.sh
 └── tests/
     ├── adversarial_cases.md
+    ├── test_v541_regressions.py
     └── test_*.py
 ```
 

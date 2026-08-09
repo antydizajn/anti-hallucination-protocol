@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import importlib.util
+import os
 import sys
 from pathlib import Path
+
+import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "scripts" / "check_v5_integrity.py"
@@ -25,7 +28,7 @@ def write_minimal_tree(tmp_path: Path, skill_text: str) -> Path:
     return root
 
 
-def valid_skill(version: str = "5.4.0") -> str:
+def valid_skill(version: str = "5.4.1") -> str:
     states = "\n".join(mod.REQUIRED_STATES)
     refs = "\n".join(mod.ACTIVE_REFERENCES)
     return f'''---
@@ -54,25 +57,25 @@ def test_happy_path(tmp_path):
 def test_other_v5_semver_is_rejected_by_release_checker(tmp_path):
     root = write_minimal_tree(tmp_path, valid_skill("5.9.3"))
     errors = mod.validate(root)
-    assert any("expected exact release version '5.4.0'" in e for e in errors)
+    assert any("expected exact release version '5.4.1'" in e for e in errors)
 
 
 def test_previous_v5_release_is_rejected(tmp_path):
-    root = write_minimal_tree(tmp_path, valid_skill("5.3.0"))
+    root = write_minimal_tree(tmp_path, valid_skill("5.4.0"))
     errors = mod.validate(root)
-    assert any("expected exact release version '5.4.0'" in e for e in errors)
+    assert any("expected exact release version '5.4.1'" in e for e in errors)
 
 
 def test_wrong_major_version_fails(tmp_path):
     root = write_minimal_tree(tmp_path, valid_skill("4.0.0"))
     errors = mod.validate(root)
-    assert any("expected exact release version '5.4.0'" in e for e in errors)
+    assert any("expected exact release version '5.4.1'" in e for e in errors)
 
 
 def test_non_semver_version_fails(tmp_path):
     root = write_minimal_tree(tmp_path, valid_skill("five-point-four"))
     errors = mod.validate(root)
-    assert any("expected exact release version '5.4.0'" in e for e in errors)
+    assert any("expected exact release version '5.4.1'" in e for e in errors)
 
 
 def test_missing_required_file_fails(tmp_path):
@@ -104,17 +107,17 @@ def test_dead_backtick_path_fails(tmp_path):
 
 
 def test_no_frontmatter_fails_even_if_body_contains_version_string(tmp_path):
-    fake = "version: 5.4.0\n" + "\n".join(mod.REQUIRED_STATES + mod.ACTIVE_REFERENCES)
+    fake = "version: 5.4.1\n" + "\n".join(mod.REQUIRED_STATES + mod.ACTIVE_REFERENCES)
     root = write_minimal_tree(tmp_path, fake)
     errors = mod.validate(root)
     assert any("must begin with YAML frontmatter" in e for e in errors)
 
 
 def test_body_version_cannot_mask_wrong_frontmatter_version(tmp_path):
-    fake = valid_skill("5.3.0") + "\nversion: 5.4.0\n"
+    fake = valid_skill("5.4.0") + "\nversion: 5.4.1\n"
     root = write_minimal_tree(tmp_path, fake)
     errors = mod.validate(root)
-    assert any("expected exact release version '5.4.0'" in e for e in errors)
+    assert any("expected exact release version '5.4.1'" in e for e in errors)
 
 
 def test_unclosed_frontmatter_fails(tmp_path):
@@ -130,8 +133,7 @@ def test_malformed_top_level_line_fails_yaml_parse(tmp_path):
         "description: Test fixture\nTHIS IS NOT A MAPPING",
     )
     root = write_minimal_tree(tmp_path, fake)
-    errors = mod.validate(root)
-    assert errors
+    assert mod.validate(root)
 
 
 def test_leading_unterminated_flow_sequence_fails(tmp_path):
@@ -141,11 +143,10 @@ def test_leading_unterminated_flow_sequence_fails(tmp_path):
     assert any("not valid YAML" in e for e in errors)
 
 
-def test_trailing_unterminated_flow_sequence_fails(tmp_path):
+def test_trailing_bracket_inside_plain_scalar_is_valid_yaml(tmp_path):
     fake = valid_skill().replace("description: Test fixture", "description: Test fixture [")
     root = write_minimal_tree(tmp_path, fake)
-    errors = mod.validate(root)
-    assert any("not valid YAML" in e for e in errors)
+    assert mod.validate(root) == []
 
 
 def test_unterminated_quoted_scalar_fails(tmp_path):
@@ -171,8 +172,7 @@ def test_colon_rich_plain_scalar_is_rejected_if_yaml_reinterprets_it(tmp_path):
         "description: malformed: scalar",
     )
     root = write_minimal_tree(tmp_path, fake)
-    errors = mod.validate(root)
-    assert errors
+    assert mod.validate(root)
 
 
 def test_platforms_must_parse_as_list(tmp_path):
@@ -186,7 +186,10 @@ def test_platforms_must_parse_as_list(tmp_path):
 
 
 def test_metadata_hermes_must_be_mapping(tmp_path):
-    fake = valid_skill().replace("  hermes:\n", "  hermes: nope\n")
+    fake = valid_skill().replace(
+        "  hermes:\n    tags: [verification]\n    category: software-development",
+        "  hermes: nope",
+    )
     root = write_minimal_tree(tmp_path, fake)
     errors = mod.validate(root)
     assert any("metadata.hermes must be a mapping" in e for e in errors)
@@ -194,8 +197,8 @@ def test_metadata_hermes_must_be_mapping(tmp_path):
 
 def test_duplicate_top_level_key_fails(tmp_path):
     fake = valid_skill().replace(
-        "version: 5.4.0",
-        "version: 5.4.0\nversion: 5.4.1",
+        "version: 5.4.1",
+        "version: 5.4.1\nversion: 5.4.2",
     )
     root = write_minimal_tree(tmp_path, fake)
     errors = mod.validate(root)
@@ -207,3 +210,22 @@ def test_missing_required_frontmatter_key_fails(tmp_path):
     root = write_minimal_tree(tmp_path, fake)
     errors = mod.validate(root)
     assert any("frontmatter missing required key: license" in e for e in errors)
+
+
+def test_utf8_bom_before_frontmatter_is_accepted_like_hermes(tmp_path):
+    root = write_minimal_tree(tmp_path, "\ufeff" + valid_skill())
+    assert mod.validate(root) == []
+
+
+def test_required_reference_symlink_escape_is_rejected(tmp_path):
+    root = write_minimal_tree(tmp_path, valid_skill())
+    target = root / "references" / "v5-gap-map.md"
+    outside = tmp_path / "outside.md"
+    outside.write_text("outside", encoding="utf-8")
+    target.unlink()
+    try:
+        os.symlink(outside, target)
+    except (OSError, NotImplementedError):
+        pytest.skip("symlinks unsupported")
+    errors = mod.validate(root)
+    assert any("escapes skill root" in e for e in errors)

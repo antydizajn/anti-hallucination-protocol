@@ -45,7 +45,7 @@ verifier_failure_state
 
 Do not invent values for fields that cannot be established. Use explicit unknown states where available and downgrade the claim when an unknown is load-bearing.
 
-The JSON schema is a storage/shape contract. `scripts/check_evidence_record.py` adds deterministic cross-field invariants that depend on risk tier and claim type. The checker deliberately supports only the schema keywords used by the canonical schema and refuses an unknown schema keyword rather than silently ignoring a future constraint.
+The JSON schema is a storage/shape contract. `scripts/check_evidence_record.py` adds deterministic cross-field invariants that depend on risk tier and claim type. The checker deliberately supports only the schema keywords and schema forms used by the canonical schema and refuses an unknown construct rather than silently ignoring a future constraint.
 
 ## Claim states
 
@@ -61,6 +61,10 @@ UNKNOWN_SCOPE
 ```
 
 Forbidden collapses include `ERROR -> NOT_FOUND`, scoped absence -> global absence, and `PARTIAL`/`INCONCLUSIVE`/`CONFLICT` -> unsupported certainty.
+
+`NOT_FOUND_WITHIN_SCOPE` requires an explicit non-empty inspected scope. Without the search boundary, the negative claim is not structurally complete.
+
+`PARTIAL` requires at least some supporting or partially supporting evidence. A record containing only irrelevant, unclear, or contradictory evidence should use a state that reflects that evidence rather than `PARTIAL` by label alone.
 
 `CONTRADICTED` means decisive contrary evidence remains and no material supporting `ENTAILS` evidence survives in the submitted record. If material support and contradiction both remain unresolved, use `CONFLICT`.
 
@@ -135,6 +139,8 @@ Stronger independence can come from materially different failure domains such as
 
 A `VERIFIED` lineage judgment means there is an auditable external basis for the judgment. The checker can require that a basis and group are recorded. It cannot establish that the provenance claim itself is true.
 
+For strong T3 records, the checker also rejects the obvious internal contradiction of reusing the exact same declared `source` or `source_identity` under multiple allegedly independent groups. Different source strings and different group strings still do not prove external independence.
+
 ## Verifier failure state
 
 Executable values:
@@ -159,7 +165,7 @@ For every supporting `ENTAILS` item, the checker requires:
 - known `source_class`;
 - non-empty `source_identity`;
 - non-empty `evidence_span`;
-- strict RFC3339 `retrieved_at` with timezone;
+- RFC3339-profile `retrieved_at` with timezone;
 - `integrity=CLEAN_OBSERVED`;
 - non-empty verifier provenance;
 - `verifier_failure_state=NONE_OBSERVED`.
@@ -173,16 +179,16 @@ lineage_basis = non-empty auditable basis
 independence_group = non-empty origin/failure-domain group
 ```
 
-If multiple supporting items claim verified independence, the deterministic checker rejects duplicate non-empty `independence_group` labels. This catches an internal contradiction in the submitted record. Distinct strings still do not prove external independence.
+If multiple supporting items claim verified independence, the deterministic checker rejects duplicate non-empty `independence_group` labels and duplicate declared source/source-identity reuse across those groups. These are internal consistency checks. Distinct strings still do not prove external independence.
 
 For T3 `current_state`, a strong verdict additionally requires:
 
 ```text
-observation_time = strict RFC3339 timestamp with timezone, not materially in the future
+observation_time = RFC3339-profile timestamp with timezone, not materially in the future
 freshness = CURRENT_ENOUGH
 ```
 
-Supporting `retrieved_at` timestamps must also be strict RFC3339 and not materially in the future. Python-specific ISO variants such as a space instead of `T` are not accepted by this contract.
+Supporting `retrieved_at` timestamps must use the same accepted profile and not be materially in the future. Python-specific ISO variants such as a space instead of `T` are not accepted. The local deterministic parser intentionally implements the documented profile, not every rare RFC3339 edge such as leap-second semantics.
 
 A stale or unknown freshness state cannot be promoted to current truth merely because the top-level state says `SUPPORTED_WITH_SCOPE`.
 
