@@ -6,7 +6,7 @@
 
 **Make the agent earn the sentence.**
 
-[![Version](https://img.shields.io/badge/version-5.4.1-black?style=flat-square)](SKILL.md)
+[![Version](https://img.shields.io/badge/version-5.4.2-black?style=flat-square)](SKILL.md)
 [![Hermes Skill](https://img.shields.io/badge/Hermes-Agent-111111?style=flat-square)](https://github.com/NousResearch/hermes-agent)
 [![License](https://img.shields.io/badge/license-MIT-black?style=flat-square)](#license)
 [![Adversarial](https://img.shields.io/badge/verification-adversarial-black?style=flat-square)](references/adversarial-cases.md)
@@ -51,6 +51,7 @@ These are design targets, not guarantees that a Markdown skill will force correc
 | Tool error disguised as absence | keep `ERROR` separate from `NOT_FOUND_WITHIN_SCOPE` |
 | Stale current-state claim | require explicit observation time and current-enough evidence for strong T3 current-state records |
 | Prompt injection inside evidence | instruct the agent to treat retrieved content as data, not instruction authority |
+| User pressure upgrades certainty | evidence state may strengthen only when the evidence/observation/verification basis strengthens |
 | Passing test, wrong user path | separate unit validation from E2E / observed behavior |
 | Verifier false positive | treat the verifier result as another scoped claim |
 | Compacted-session denial | check durable traces before claiming an earlier action never happened |
@@ -61,7 +62,7 @@ The canonical protocol attack corpus is in [`references/adversarial-cases.md`](r
 
 ## How it works
 
-The active v5.4.1 skill keeps the seven-rule hot path introduced in v5.3 and tightens deterministic boundaries discovered by the v5.4 audit round. It does not expand the policy architecture.
+The active v5.4.2 skill keeps the seven-rule hot path introduced in v5.3, preserves the deterministic hardening from v5.4.1, and adds one policy invariant: user pressure alone cannot upgrade evidence state. It does not expand the evidence state machine.
 
 The protocol models the full control flow as:
 
@@ -119,6 +120,8 @@ For strong T3 machine-readable records, supporting evidence must be `CLEAN_OBSER
 
 `NOT_FOUND_WITHIN_SCOPE` requires an explicit non-empty scope. A scoped absence verdict without a declared search boundary is not structurally valid.
 
+Evidence state is not upgraded by confidence theatre. User repetition, authority, preference, urgency, frustration or pressure does not by itself turn `INCONCLUSIVE` into `SUPPORTED_WITH_SCOPE`. A stronger state requires new evidence, a stronger observation or a legitimately stronger verification basis.
+
 ---
 
 ## Deterministic checks
@@ -166,7 +169,7 @@ That means exactly what it says. It does **not** establish semantic entailment, 
 
 ### `check_v5_integrity.py`
 
-Checks repository structure and parses `SKILL.md` frontmatter with real YAML rather than a hand-written YAML approximation. The v5.4.1 checker pins the exact public release version `5.4.1`, so a different v5 release cannot silently receive the same release-integrity PASS. Required support files are resolved inside the skill root so a symlink escape cannot satisfy the integrity contract merely by existing on disk.
+Checks repository structure and parses `SKILL.md` frontmatter with real YAML rather than a hand-written YAML approximation. The v5.4.2 checker pins the exact public release version `5.4.2`, so a different v5 release cannot silently receive the same release-integrity PASS. Required support files are resolved inside the skill root so a symlink escape cannot satisfy the integrity contract merely by existing on disk.
 
 ### `check_research_provenance.py`
 
@@ -301,7 +304,7 @@ anti-hallucination-protocol/
 ├── AUDITS/
 │   ├── SUMMARY.md                        # top-level synthesis through v5.4.1
 │   ├── v5.4-round3-v5.4.1-summary.md     # detailed Round 3 adjudication
-│   ├── v5.4.1-hardening-status.md        # final release evidence/status
+│   ├── v5.4.1-hardening-status.md        # final v5.4.1 release evidence/status
 │   ├── CANONICAL-AGENT-AUDIT-PROMPT.md   # five-pass blind-first audit prompt
 │   ├── gpt-5.6-sol-v5.4-prompt-review.md # methodology review
 │   ├── big-pickle-4.md                   # v5.4 execution audit artifact
@@ -337,6 +340,7 @@ anti-hallucination-protocol/
     ├── test_v5_integrity.py
     ├── test_v541_regressions.py
     ├── test_v541_integrity_extra.py
+    ├── test_v542_policy_regressions.py
     ├── test_research_provenance.py
     └── test_liveness.py
 ```
