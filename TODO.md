@@ -33,30 +33,23 @@ Do not treat the current `main` HEAD, current test count, current CI status, liv
 
 ## TODO-NOW-001 - bring `AUDITS/SUMMARY.md` through v5.4.1
 
-Status: OPEN
-Priority: HIGH
+Status: DONE
+Priority: CLOSED
 Class: audit synthesis / documentation
+Completed by commit: `46c0c2c2632edde7bfb42b2070cd041897dfadcb`
 
-`AUDITS/SUMMARY.md` currently ends its main disposition at v5.4 and still describes running the v5.4 regression suite and fresh blind audit as future work. That is stale after the v5.4.1 hardening and final regression verification.
+Completion evidence:
 
-Required work:
+- `AUDITS/SUMMARY.md` is now explicitly a synthesis through v5.4.1;
+- v5.4 Round 3 and v5.4.1 disposition are included;
+- audit evidence classes remain separated rather than averaged;
+- the 92-vs-102 test conflict is reconciled using stronger fresh-clone evidence;
+- reproduced versus file/static findings are distinguished;
+- final v5.4.1 release evidence is recorded;
+- behavioral obedience remains explicitly unverified;
+- semantic truth and real-world source independence remain outside the structural checker contract.
 
-- add a v5.4 Round 3 / v5.4.1 section;
-- separate audit classes rather than averaging them;
-- record which findings were actually reproduced versus source-inferred;
-- record the independent reproduction of the two invalid YAML test assumptions;
-- record the deterministic false-FOUND paths discovered around empty matchers;
-- record same-source / same-source-identity independence hardening;
-- record symlink escape, schema-form drift, whitespace-only values, `PARTIAL`, liveness, BOM and quoted duplicate-key hardening;
-- record final release evidence from the actual GitHub Actions run;
-- preserve the explicit limitation that behavioral obedience remains UNKNOWN;
-- preserve rejected findings and do not silently upgrade heuristic claims.
-
-Definition of done:
-
-- synthesis accurately describes v5.4.1;
-- every major disposition has an evidence class;
-- no claim that v5.4.1 solved semantic truth, real-world source independence or behavioral obedience.
+Do not reopen this item unless new evidence shows the synthesis is materially stale or incorrect.
 
 ## TODO-NOW-002 - complete audit archive integrity
 
@@ -567,7 +560,7 @@ For behavioral work:
 Unless new reproduced evidence points elsewhere, the ordering should be:
 
 ```text
-1. update audit synthesis / archive integrity
+1. complete audit archive integrity and Round 3 evidence inventory
 2. design behavioral benchmark contract
 3. run AHP-loaded versus control Hermes evaluations
 4. improve runtime/startup observability
