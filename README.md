@@ -290,35 +290,58 @@ This is a protocol for making unsupported certainty harder, not impossible.
 
 ```text
 anti-hallucination-protocol/
-├── SKILL.md
-├── README.md
-├── TODO.md
-├── PROJECT-HANDOFF.md
-├── .github/workflows/ci.yml
+├── SKILL.md                              # active Hermes policy / hot path
+├── README.md                             # public contract, install and limits
+├── TODO.md                               # post-v5.4.1 roadmap
+├── PROJECT-HANDOFF.md                    # cold-start continuation state
+├── LICENSE
+├── .github/
+│   └── workflows/
+│       └── ci.yml                        # Python 3.11 / 3.13 regression gate
 ├── AUDITS/
-│   ├── CANONICAL-AGENT-AUDIT-PROMPT.md
-│   ├── SUMMARY.md
-│   └── ...audit reports
+│   ├── SUMMARY.md                        # top-level synthesis through v5.4.1
+│   ├── v5.4-round3-v5.4.1-summary.md     # detailed Round 3 adjudication
+│   ├── v5.4.1-hardening-status.md        # final release evidence/status
+│   ├── CANONICAL-AGENT-AUDIT-PROMPT.md   # five-pass blind-first audit prompt
+│   ├── gpt-5.6-sol-v5.4-prompt-review.md # methodology review
+│   ├── big-pickle-4.md                   # v5.4 execution audit artifact
+│   ├── PPX-GLM5.2.md                     # historical placeholder, not raw archive
+│   └── ...historical and Round 3 audit artifacts
 ├── assets/
 │   └── anti-hallucination-eye.svg
 ├── references/
-│   ├── adversarial-cases.md
-│   ├── evidence-record.schema.json
-│   ├── evidence-state-model.md
+│   ├── adversarial-cases.md              # protocol-level attack specification
+│   ├── evidence-record.schema.json       # machine-readable evidence contract
+│   ├── evidence-state-model.md           # executable-state semantics
 │   ├── research-foundations.md
 │   ├── v5-research-manifest.json
-│   └── ...
+│   ├── v5-gap-map.md
+│   ├── untrusted-evidence-boundary.md
+│   ├── verification-harness-traps.md
+│   ├── stale-bug-and-done-work-verification.md
+│   ├── fix-target-liveness.md
+│   ├── self-capability-honesty.md
+│   ├── multi-judge-ensemble.md
+│   └── vetting-external-project-claims.md
 ├── scripts/
-│   ├── verify_claim.py
-│   ├── check_evidence_record.py
-│   ├── check_research_provenance.py
-│   ├── check_v5_integrity.py
-│   └── liveness_check.sh
+│   ├── verify_claim.py                   # narrow filesystem/text/command verifier
+│   ├── check_evidence_record.py          # schema + cross-field invariants
+│   ├── check_v5_integrity.py             # exact-release repository contract
+│   ├── check_research_provenance.py      # offline research identity consistency
+│   ├── liveness_check.sh                 # portable L1/L2 installation checks
+│   └── ...legacy/non-load-bearing helpers
 └── tests/
-    ├── adversarial_cases.md
+    ├── adversarial_cases.md               # executable-test companion corpus
+    ├── test_verify_claim.py
+    ├── test_evidence_record.py
+    ├── test_v5_integrity.py
     ├── test_v541_regressions.py
-    └── test_*.py
+    ├── test_v541_integrity_extra.py
+    ├── test_research_provenance.py
+    └── test_liveness.py
 ```
+
+The map is intentionally structural, not a promise that every historical audit artifact is raw-byte complete. In particular, `AUDITS/PPX-GLM5.2.md` is still a documented placeholder pending archive-integrity restoration.
 
 ---
 
