@@ -13,7 +13,7 @@
 
 A Hermes Agent skill for the moment between **"this looks right"** and **"I'm going to state it as fact."**
 
-[Install](#install) · [Failure modes](#failure-modes-it-targets) · [How it works](#how-it-works) · [Limits](#what-it-does-not-prove)
+[Install](#install) · [Failure modes](#failure-modes-it-targets) · [How it works](#how-it-works) · [Limits](#what-it-does-not-prove) · [Roadmap](TODO.md)
 
 </div>
 
@@ -259,6 +259,8 @@ For a fresh independent audit, use [`AUDITS/CANONICAL-AGENT-AUDIT-PROMPT.md`](AU
 
 For a completely fresh continuation session, start with [`PROJECT-HANDOFF.md`](PROJECT-HANDOFF.md). It contains a three-iteration cold-start reconstruction of the project state, historical decisions, release evidence, startup integration, and the next behavioral-evaluation frontier. Treat the handoff as navigation, then verify current reality from the repository.
 
+For the current post-release backlog, use [`TODO.md`](TODO.md). It separates documentation/archive hygiene, behavioral benchmarking, Hermes runtime work, provenance/live-state research, portability and release maintenance. Treat roadmap status as mutable and verify before acting.
+
 ---
 
 ## What it does not prove
@@ -290,6 +292,7 @@ This is a protocol for making unsupported certainty harder, not impossible.
 anti-hallucination-protocol/
 ├── SKILL.md
 ├── README.md
+├── TODO.md
 ├── PROJECT-HANDOFF.md
 ├── .github/workflows/ci.yml
 ├── AUDITS/
