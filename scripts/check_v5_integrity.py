@@ -90,7 +90,10 @@ ACTIVE_REFERENCES = [
 
 LOCAL_MD_LINK_RE = re.compile(r"\[[^\]]+\]\((?!https?://)([^)#]+)(?:#[^)]+)?\)")
 BACKTICK_REF_RE = re.compile(r"`((?:references|scripts|tests)/[^`]+)`")
-TOP_LEVEL_KEY_RE = re.compile(r"^(?P<key>[A-Za-z_][A-Za-z0-9_-]*):", re.MULTILINE)
+TOP_LEVEL_KEY_RE = re.compile(
+    r"^(?P<quote>[\"']?)(?P<key>[A-Za-z_][A-Za-z0-9_-]*)(?P=quote)\s*:",
+    re.MULTILINE,
+)
 
 
 def split_frontmatter(text: str) -> tuple[str, str, list[str]]:
