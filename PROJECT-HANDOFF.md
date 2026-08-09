@@ -12,11 +12,11 @@ Repository:
 https://github.com/antydizajn/anti-hallucination-protocol
 ```
 
-Historical release anchor when this handoff was last materially reconstructed:
+Latest regression-verified release anchor when this handoff was last materially reconstructed:
 
 ```text
-v5.4.1
-release tag commit: 7f5454c9c8e58ca9bd0728d13210d6c5a6424bc1
+v5.4.2
+release tag commit: 94bfd13f9c4818a949775bd73c1c0d91ce6a3116
 ```
 
 Do **not** store or infer a durable statement such as "main is N commits ahead of the release" from this handoff. Documentation and later work can move `main` immediately. Compute current state live.
@@ -49,7 +49,7 @@ git rev-parse HEAD
 git status --short
 git log -10 --oneline --decorate
 git tag --list --sort=version:refname
-git diff --stat v5.4.1..main || true
+git diff --stat v5.4.2..main || true
 ```
 
 Then read, in this order:
@@ -59,6 +59,7 @@ SKILL.md
 README.md
 TODO.md
 PROJECT-HANDOFF.md
+AUDITS/v5.4.2-release-status.md
 AUDITS/v5.4.1-hardening-status.md
 AUDITS/CANONICAL-AGENT-AUDIT-PROMPT.md
 AUDITS/SUMMARY.md
@@ -95,7 +96,7 @@ OPEN UNKNOWN
 PROJECT: Anti-Hallucination Protocol (AHP)
 REPOSITORY: https://github.com/antydizajn/anti-hallucination-protocol
 AUTHORS: Paulina Janowska + Gniewisława AI
-HISTORICAL RELEASE ANCHOR: v5.4.1
+LATEST RELEASE ANCHOR: v5.4.2
 
 ACTIVE REPOSITORY BOUNDARY
 Only the standalone repository above is the active project.
@@ -178,6 +179,7 @@ v5.2.0
 v5.3.0
 v5.4.0
 v5.4.1
+v5.4.2
 
 Do not invent additional release tags, release dates or meanings without inspecting Git history.
 
@@ -233,6 +235,15 @@ Verify current code still blocks them before calling them fixed today:
 - quoted duplicate top-level YAML key handling;
 - expanded liveness self-tests;
 - permanent Python 3.11/3.13 regression matrix.
+
+v5.4.2 was a narrow policy patch, not a new state machine.
+
+HISTORICALLY ADDED IN v5.4.2
+- user pressure, repetition, authority, preference, urgency or frustration does not strengthen evidence by itself;
+- an evidence-state upgrade requires new evidence, a stronger observation or a legitimately stronger verification basis;
+- user authority governs goals, scope, authorization, acceptable risk and normative choices, not factual truth by fiat;
+- adversarial case 31 captures the pressure-to-upgrade failure mode;
+- policy presence is regression-locked, while behavioral obedience remains unverified.
 
 EVIDENCE STATE MODEL
 Important executable top-level states historically include:
@@ -320,17 +331,17 @@ A human is not automatically the strongest factual sensor. For live state, prefe
 
 A human can also introduce confirmation bias, memory error and pressure for convenient certainty.
 
-Future behavioral invariant worth testing:
+v5.4.2 promoted the following behavioral invariant into the always-loaded policy kernel:
 
 USER PRESSURE DOES NOT UPGRADE EVIDENCE STATE
 
 Example:
 INCONCLUSIVE + operator pressure + no new evidence != SUPPORTED_WITH_SCOPE
 
-An epistemic upgrade requires new evidence or a legitimately stronger verification basis, not insistence.
+The repository regression-locks presence of this policy rule, but real behavioral obedience still requires benchmark evidence.
 
 OPEN FRONTIER
-The largest unresolved project-level question after v5.4.1 is behavioral obedience/effectiveness in real Hermes sessions.
+The largest unresolved project-level question after v5.4.2 is behavioral obedience/effectiveness in real Hermes sessions.
 
 This is not proven by unit tests, Markdown adversarial cases, successful skill loading or liveness L1/L2.
 
@@ -392,7 +403,7 @@ git rev-parse HEAD
 git status --short
 git log -10 --oneline --decorate
 git tag --list --sort=version:refname
-git diff --stat v5.4.1..main || true
+git diff --stat v5.4.2..main || true
 
 Inventory the actual repository before assuming any historical file still exists.
 
@@ -402,6 +413,7 @@ SKILL.md
 README.md
 TODO.md
 PROJECT-HANDOFF.md
+AUDITS/v5.4.2-release-status.md
 AUDITS/v5.4.1-hardening-status.md
 AUDITS/CANONICAL-AGENT-AUDIT-PROMPT.md
 AUDITS/SUMMARY.md
@@ -415,18 +427,19 @@ If correctness matters to the requested work, execute or inspect actual current 
 B. SEPARATE CURRENT MAIN FROM RELEASE HISTORY
 ============================================================
 
-Historical release anchor recorded by this handoff:
+Latest release anchor recorded by this handoff:
 
-v5.4.1
-7f5454c9c8e58ca9bd0728d13210d6c5a6424bc1
+v5.4.2
+94bfd13f9c4818a949775bd73c1c0d91ce6a3116
 
-Historical final release evidence:
+Latest final release evidence:
 - Python 3.11 CI PASS;
 - Python 3.13 CI PASS;
-- Python 3.13: 124/124 tests passed;
+- Python 3.13: 126/126 tests passed;
 - integrity PASS;
 - offline research provenance PASS;
 - portable L1/L2 liveness PASS;
+- user-pressure policy invariant present and regression-locked;
 - behavioral obedience UNKNOWN.
 
 These numbers describe that release verification event.
@@ -578,7 +591,7 @@ Read TODO.md for current priorities.
 
 Do not treat roadmap text in older audits or this handoff as live task state.
 
-Unless new reproduced evidence changes priorities, the historical strategic direction after v5.4.1 is:
+Unless new reproduced evidence changes priorities, the strategic direction after v5.4.2 is:
 - finish audit synthesis/archive hygiene;
 - design a real behavioral benchmark;
 - compare AHP-loaded versus control Hermes sessions;
@@ -633,9 +646,9 @@ The handoff itself is not exempt from AHP.
 
 # Durable state summary
 
-The project reached the regression-verified `v5.4.1` release after multiple audit rounds and a deterministic hardening pass. At that release event, the Python 3.11 and 3.13 CI jobs passed; Python 3.13 reported `124 passed`; integrity, offline research provenance and portable L1/L2 liveness passed. Behavioral obedience remained explicitly unknown.
+The project reached the regression-verified `v5.4.2` release after the v5.4.1 deterministic hardening pass and a narrow policy patch against social/user-pressure evidence upgrades. At the v5.4.2 release event, the Python 3.11 and 3.13 CI jobs passed; Python 3.13 reported `126 passed`; integrity, offline research provenance and portable L1/L2 liveness passed. Behavioral obedience remained explicitly unknown.
 
-The architecture intentionally remains a compact Hermes policy layer plus progressive references and narrow deterministic helpers. The major confidence frontier after v5.4.1 is measured behavioral effectiveness in real sessions, not another round of accumulating prose in `SKILL.md`.
+The architecture intentionally remains a compact Hermes policy layer plus progressive references and narrow deterministic helpers. The major confidence frontier after v5.4.2 is measured behavioral effectiveness in real sessions, not another round of accumulating prose in `SKILL.md`.
 
 Current tasks belong in `TODO.md`, not in this historical handoff.
 

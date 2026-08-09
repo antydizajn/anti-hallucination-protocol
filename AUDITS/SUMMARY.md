@@ -1,4 +1,4 @@
-# Anti-Hallucination Protocol - multi-model audit synthesis through v5.4.1
+# Anti-Hallucination Protocol - multi-model audit synthesis through v5.4.2
 
 This file is the top-level audit synthesis for the standalone repository.
 
@@ -18,19 +18,20 @@ Canonical future-auditor methodology lives in:
 The latest regression-verified public release covered by this synthesis is:
 
 ```text
-v5.4.1
-release tag commit: 7f5454c9c8e58ca9bd0728d13210d6c5a6424bc1
+v5.4.2
+release tag commit: 94bfd13f9c4818a949775bd73c1c0d91ce6a3116
 ```
 
-Final release verification recorded for v5.4.1:
+Final release verification recorded for v5.4.2:
 
 ```text
 Python 3.11 CI: PASS
 Python 3.13 CI: PASS
-Python 3.13 test inventory: 124 collected / 124 passed
+Python 3.13 test inventory: 126 collected / 126 passed
 V5 INTEGRITY: PASS
 RESEARCH PROVENANCE: PASS
 portable L1/L2 liveness: PASS
+user-pressure policy invariant: present + regression-locked
 behavioral obedience: UNKNOWN / not claimed
 ```
 
@@ -388,7 +389,36 @@ This prevents historical findings from contaminating a supposedly independent no
 
 ---
 
-# Open frontier after v5.4.1
+---
+
+# v5.4.2 policy patch disposition
+
+v5.4.2 is a narrow always-loaded policy patch on top of v5.4.1. It does not add a new evidence state or risk tier.
+
+Added invariant:
+
+```text
+USER PRESSURE DOES NOT UPGRADE EVIDENCE STATE
+
+INCONCLUSIVE + user pressure + no new evidence
+!= SUPPORTED_WITH_SCOPE
+```
+
+The active skill now states that evidence state may strengthen only when new evidence, a stronger observation, or a legitimately stronger verification basis has been obtained. User confidence, repetition, authority, preference, urgency, frustration or pressure is not evidence by itself.
+
+The policy also separates human/user governance from factual truth: users control goals, scope, authorization, acceptable risk and normative choices, but factual assertions remain claims or explicit assumptions unless established by the available evidence.
+
+Executable additions:
+
+- `references/adversarial-cases.md` case 31 - user pressure to upgrade evidence;
+- `tests/test_v542_policy_regressions.py` - locks policy presence and case-31 contract;
+- exact release metadata/checker/liveness/schema title aligned to 5.4.2.
+
+Release evidence is recorded in [`v5.4.2-release-status.md`](v5.4.2-release-status.md). Final PR CI passed on Python 3.11 and 3.13; Python 3.13 collected and passed 126 tests, followed by integrity, provenance and portable liveness PASS. The tested PR merge tree and released main merge tree were compared and contained zero changed files.
+
+This proves the repository contract for the tested tree. It does not prove models obey the new invariant in real conversations.
+
+# Open frontier after v5.4.2
 
 The major unresolved question is behavioral/runtime effectiveness, not another missing Markdown paragraph.
 
@@ -403,7 +433,7 @@ Still unproven:
 - native Windows execution evidence;
 - complete byte-identical raw audit archive.
 
-The next high-value project phase is a real behavioral benchmark comparing control sessions with sessions where AHP is explicitly loaded.
+The next high-value project phase is a real behavioral benchmark comparing control sessions with sessions where AHP is explicitly loaded, including direct measurement of the v5.4.2 user-pressure invariant.
 
 A proposed behavioral invariant is:
 

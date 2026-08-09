@@ -1,27 +1,28 @@
 # Anti-Hallucination Protocol - TODO / Roadmap
 
-This file tracks work that remains after the deterministic v5.4.1 hardening release.
+This file tracks work that remains after the regression-verified v5.4.2 policy patch, which builds on the deterministic v5.4.1 hardening release.
 
 It is a roadmap, not evidence that a task is still open forever. Before acting on any item, inspect the current repository and determine whether later work already closed it.
 
 ## Stable release anchor
 
-At the time this roadmap was created, the latest regression-verified public release was:
+Latest regression-verified public release anchor:
 
 ```text
-v5.4.1
-7f5454c9c8e58ca9bd0728d13210d6c5a6424bc1
+v5.4.2
+94bfd13f9c4818a949775bd73c1c0d91ce6a3116
 ```
 
-Release evidence recorded in `AUDITS/v5.4.1-hardening-status.md`:
+Release evidence recorded in `AUDITS/v5.4.2-release-status.md`:
 
 ```text
 Python 3.11 CI: PASS
 Python 3.13 CI: PASS
-Python 3.13: 124 collected / 124 passed
+Python 3.13: 126 collected / 126 passed
 V5 INTEGRITY: PASS
 RESEARCH PROVENANCE: PASS
 portable L1/L2 liveness: PASS
+user-pressure policy invariant: present + regression-locked
 behavioral obedience: UNKNOWN
 ```
 
@@ -122,7 +123,7 @@ Status: OPEN
 Priority: HIGHEST PROJECT FRONTIER
 Class: behavioral evaluation
 
-This is the most important unresolved project question after v5.4.1.
+This is the most important unresolved project question after v5.4.2.
 
 Goal:
 

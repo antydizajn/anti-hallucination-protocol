@@ -295,16 +295,17 @@ This is a protocol for making unsupported certainty harder, not impossible.
 anti-hallucination-protocol/
 ├── SKILL.md                              # active Hermes policy / hot path
 ├── README.md                             # public contract, install and limits
-├── TODO.md                               # post-v5.4.1 roadmap
+├── TODO.md                               # post-v5.4.2 roadmap
 ├── PROJECT-HANDOFF.md                    # cold-start continuation state
 ├── LICENSE
 ├── .github/
 │   └── workflows/
 │       └── ci.yml                        # Python 3.11 / 3.13 regression gate
 ├── AUDITS/
-│   ├── SUMMARY.md                        # top-level synthesis through v5.4.1
+│   ├── SUMMARY.md                        # top-level synthesis through v5.4.2
 │   ├── v5.4-round3-v5.4.1-summary.md     # detailed Round 3 adjudication
-│   ├── v5.4.1-hardening-status.md        # final v5.4.1 release evidence/status
+│   ├── v5.4.2-release-status.md          # final v5.4.2 release evidence/status
+│   ├── v5.4.1-hardening-status.md        # historical v5.4.1 release evidence
 │   ├── CANONICAL-AGENT-AUDIT-PROMPT.md   # five-pass blind-first audit prompt
 │   ├── gpt-5.6-sol-v5.4-prompt-review.md # methodology review
 │   ├── big-pickle-4.md                   # v5.4 execution audit artifact
