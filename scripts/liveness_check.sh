@@ -23,7 +23,7 @@ fail_required() {
 printf '==== anti-hallucination v5.4.1 liveness - %s ====\n' "$(date '+%Y-%m-%d %H:%M:%S %Z')"
 
 echo
-echo "L1. Installed skill and deterministic self-test:"
+echo "L1. Installed skill and deterministic self-tests:"
 if [ -f "$SKILL_DIR/SKILL.md" ]; then
   echo "  [OK]   SKILL.md present"
 else
@@ -37,13 +37,24 @@ else
 fi
 
 if ! command -v python3 >/dev/null 2>&1; then
-  fail_required "python3 unavailable; required verifier self-test cannot run"
+  fail_required "python3 unavailable; required verifier self-tests cannot run"
 elif [ ! -f "$VERIFY" ]; then
-  fail_required "verifier unavailable; required self-test cannot run"
-elif python3 "$VERIFY" file-exists "$SKILL_DIR/SKILL.md" --kind file >/dev/null 2>&1; then
-  echo "  [OK]   verify_claim.py self-test passed on installed SKILL.md"
+  fail_required "verifier unavailable; required self-tests cannot run"
 else
-  fail_required "verify_claim.py self-test failed"
+  python3 "$VERIFY" file-exists "$SKILL_DIR/SKILL.md" --kind file >/dev/null 2>&1
+  EXISTS_CODE=$?
+  python3 "$VERIFY" file-contains "$SKILL_DIR/SKILL.md" "anti-hallucination-protocol" >/dev/null 2>&1
+  CONTAINS_CODE=$?
+  python3 "$VERIFY" file-contains "$SKILL_DIR/SKILL.md" "" >/dev/null 2>&1
+  EMPTY_CONTAINS_CODE=$?
+  python3 "$VERIFY" file-line "$SKILL_DIR/SKILL.md" 1 "" >/dev/null 2>&1
+  EMPTY_LINE_CODE=$?
+
+  if [ "$EXISTS_CODE" -eq 0 ] && [ "$CONTAINS_CODE" -eq 0 ] && [ "$EMPTY_CONTAINS_CODE" -eq 2 ] && [ "$EMPTY_LINE_CODE" -eq 2 ]; then
+    echo "  [OK]   verify_claim.py self-tests passed (existence, content, empty-match rejection)"
+  else
+    fail_required "verify_claim.py self-test failed (exists=$EXISTS_CODE contains=$CONTAINS_CODE empty_contains=$EMPTY_CONTAINS_CODE empty_line=$EMPTY_LINE_CODE)"
+  fi
 fi
 
 echo
