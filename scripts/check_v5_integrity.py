@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Repository-local integrity checker for Anti-Hallucination Protocol v5.4.1.
+"""Repository-local integrity checker for Anti-Hallucination Protocol v5.4.2.
 
 Frontmatter acceptance is intentionally based on a real YAML parse, not a
 home-grown approximation. This prevents the integrity checker from certifying
@@ -10,7 +10,7 @@ narrow repository contract. It does not validate research truth, semantic
 entailment, web availability, or Hermes runtime behavior.
 
 A PASS means only that the checked repository structure and metadata contract
-are internally consistent for v5.4.1.
+are internally consistent for v5.4.2.
 """
 
 from __future__ import annotations
@@ -26,7 +26,7 @@ try:
 except ImportError:  # pragma: no cover
     yaml = None
 
-EXPECTED_VERSION = "5.4.1"
+EXPECTED_VERSION = "5.4.2"
 REQUIRED_FRONTMATTER_KEYS = {
     "name",
     "description",
