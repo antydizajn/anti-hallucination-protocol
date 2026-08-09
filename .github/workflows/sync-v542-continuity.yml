@@ -1,0 +1,105 @@
+name: Sync v5.4.2 continuity docs
+
+on:
+  push:
+    branches: [main]
+    paths: [.github/workflows/sync-v542-continuity.yml]
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Sync continuity documents
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def rep(path, old, new, count=None):
+              p = Path(path)
+              text = p.read_text(encoding='utf-8')
+              found = text.count(old)
+              if count is not None and found != count:
+                  raise SystemExit(f'{path}: expected {count} occurrences, found {found}: {old[:100]!r}')
+              if found == 0:
+                  raise SystemExit(f'{path}: missing expected text: {old[:100]!r}')
+              p.write_text(text.replace(old, new), encoding='utf-8')
+
+          # PROJECT-HANDOFF: update only current/latest release anchors and strategic frontier.
+          p = Path('PROJECT-HANDOFF.md')
+          text = p.read_text(encoding='utf-8')
+          text = text.replace(
+              'Historical release anchor when this handoff was last materially reconstructed:\n\n```text\nv5.4.1\nrelease tag commit: 7f5454c9c8e58ca9bd0728d13210d6c5a6424bc1\n```',
+              'Latest regression-verified release anchor when this handoff was last materially reconstructed:\n\n```text\nv5.4.2\nrelease tag commit: 94bfd13f9c4818a949775bd73c1c0d91ce6a3116\n```'
+          )
+          text = text.replace('git diff --stat v5.4.1..main || true', 'git diff --stat v5.4.2..main || true')
+          text = text.replace('AUDITS/v5.4.1-hardening-status.md\nAUDITS/CANONICAL-AGENT-AUDIT-PROMPT.md', 'AUDITS/v5.4.2-release-status.md\nAUDITS/v5.4.1-hardening-status.md\nAUDITS/CANONICAL-AGENT-AUDIT-PROMPT.md')
+          text = text.replace('HISTORICAL RELEASE ANCHOR: v5.4.1', 'LATEST RELEASE ANCHOR: v5.4.2')
+          text = text.replace('Known historical release lineage at the time of this handoff:\n\nv2.0.0\nv3.0.0\nv4.0.0\nv5.0.0\nv5.1.0\nv5.2.0\nv5.3.0\nv5.4.0\nv5.4.1', 'Known historical release lineage at the time of this handoff:\n\nv2.0.0\nv3.0.0\nv4.0.0\nv5.0.0\nv5.1.0\nv5.2.0\nv5.3.0\nv5.4.0\nv5.4.1\nv5.4.2')
+          text = text.replace('Future behavioral invariant worth testing:\n\nUSER PRESSURE DOES NOT UPGRADE EVIDENCE STATE\n\nExample:\nINCONCLUSIVE + operator pressure + no new evidence != SUPPORTED_WITH_SCOPE\n\nAn epistemic upgrade requires new evidence or a legitimately stronger verification basis, not insistence.', 'v5.4.2 promoted the following behavioral invariant into the always-loaded policy kernel:\n\nUSER PRESSURE DOES NOT UPGRADE EVIDENCE STATE\n\nExample:\nINCONCLUSIVE + operator pressure + no new evidence != SUPPORTED_WITH_SCOPE\n\nThe repository regression-locks presence of this policy rule, but real behavioral obedience still requires benchmark evidence.')
+          text = text.replace('The largest unresolved project-level question after v5.4.1 is behavioral obedience/effectiveness in real Hermes sessions.', 'The largest unresolved project-level question after v5.4.2 is behavioral obedience/effectiveness in real Hermes sessions.')
+          text = text.replace('Unless new reproduced evidence changes priorities, the historical strategic direction after v5.4.1 is:', 'Unless new reproduced evidence changes priorities, the strategic direction after v5.4.2 is:')
+          text = text.replace('Historical release anchor recorded by this handoff:\n\nv5.4.1\n7f5454c9c8e58ca9bd0728d13210d6c5a6424bc1\n\nHistorical final release evidence:\n- Python 3.11 CI PASS;\n- Python 3.13 CI PASS;\n- Python 3.13: 124/124 tests passed;\n- integrity PASS;\n- offline research provenance PASS;\n- portable L1/L2 liveness PASS;\n- behavioral obedience UNKNOWN.', 'Latest release anchor recorded by this handoff:\n\nv5.4.2\n94bfd13f9c4818a949775bd73c1c0d91ce6a3116\n\nLatest final release evidence:\n- Python 3.11 CI PASS;\n- Python 3.13 CI PASS;\n- Python 3.13: 126/126 tests passed;\n- integrity PASS;\n- offline research provenance PASS;\n- portable L1/L2 liveness PASS;\n- user-pressure policy invariant present and regression-locked;\n- behavioral obedience UNKNOWN.')
+          text = text.replace('The project reached the regression-verified `v5.4.1` release after multiple audit rounds and a deterministic hardening pass. At that release event, the Python 3.11 and 3.13 CI jobs passed; Python 3.13 reported `124 passed`; integrity, offline research provenance and portable L1/L2 liveness passed. Behavioral obedience remained explicitly unknown.\n\nThe architecture intentionally remains a compact Hermes policy layer plus progressive references and narrow deterministic helpers. The major confidence frontier after v5.4.1 is measured behavioral effectiveness in real sessions, not another round of accumulating prose in `SKILL.md`.', 'The project reached the regression-verified `v5.4.2` release after the v5.4.1 deterministic hardening pass and a narrow policy patch against social/user-pressure evidence upgrades. At the v5.4.2 release event, the Python 3.11 and 3.13 CI jobs passed; Python 3.13 reported `126 passed`; integrity, offline research provenance and portable L1/L2 liveness passed. Behavioral obedience remained explicitly unknown.\n\nThe architecture intentionally remains a compact Hermes policy layer plus progressive references and narrow deterministic helpers. The major confidence frontier after v5.4.2 is measured behavioral effectiveness in real sessions, not another round of accumulating prose in `SKILL.md`.')
+          # Insert a compact v5.4.2 historical section after the v5.4.1 hardening list.
+          marker = 'EVIDENCE STATE MODEL\nImportant executable top-level states historically include:'
+          block = '''v5.4.2 was a narrow policy patch, not a new state machine.\n\nHISTORICALLY ADDED IN v5.4.2\n- user pressure, repetition, authority, preference, urgency or frustration does not strengthen evidence by itself;\n- an evidence-state upgrade requires new evidence, a stronger observation or a legitimately stronger verification basis;\n- user authority governs goals, scope, authorization, acceptable risk and normative choices, not factual truth by fiat;\n- adversarial case 31 captures the pressure-to-upgrade failure mode;\n- policy presence is regression-locked, while behavioral obedience remains unverified.\n\n'''
+          if block not in text:
+              if marker not in text: raise SystemExit('PROJECT-HANDOFF marker missing')
+              text = text.replace(marker, block + marker, 1)
+          p.write_text(text, encoding='utf-8')
+
+          # TODO: current release anchor and frontier only. Preserve closed historical v5.4.1 task entries.
+          p = Path('TODO.md'); text = p.read_text(encoding='utf-8')
+          text = text.replace('This file tracks work that remains after the deterministic v5.4.1 hardening release.', 'This file tracks work that remains after the regression-verified v5.4.2 policy patch, which builds on the deterministic v5.4.1 hardening release.')
+          text = text.replace('At the time this roadmap was created, the latest regression-verified public release was:\n\n```text\nv5.4.1\n7f5454c9c8e58ca9bd0728d13210d6c5a6424bc1\n```\n\nRelease evidence recorded in `AUDITS/v5.4.1-hardening-status.md`:\n\n```text\nPython 3.11 CI: PASS\nPython 3.13 CI: PASS\nPython 3.13: 124 collected / 124 passed\nV5 INTEGRITY: PASS\nRESEARCH PROVENANCE: PASS\nportable L1/L2 liveness: PASS\nbehavioral obedience: UNKNOWN\n```', 'Latest regression-verified public release anchor:\n\n```text\nv5.4.2\n94bfd13f9c4818a949775bd73c1c0d91ce6a3116\n```\n\nRelease evidence recorded in `AUDITS/v5.4.2-release-status.md`:\n\n```text\nPython 3.11 CI: PASS\nPython 3.13 CI: PASS\nPython 3.13: 126 collected / 126 passed\nV5 INTEGRITY: PASS\nRESEARCH PROVENANCE: PASS\nportable L1/L2 liveness: PASS\nuser-pressure policy invariant: present + regression-locked\nbehavioral obedience: UNKNOWN\n```')
+          text = text.replace('This is the most important unresolved project question after v5.4.1.', 'This is the most important unresolved project question after v5.4.2.')
+          p.write_text(text, encoding='utf-8')
+
+          # SUMMARY: current anchor + append v5.4.2 disposition. Preserve all v5.4.1 historical evidence.
+          p = Path('AUDITS/SUMMARY.md'); text = p.read_text(encoding='utf-8')
+          text = text.replace('# Anti-Hallucination Protocol - multi-model audit synthesis through v5.4.1', '# Anti-Hallucination Protocol - multi-model audit synthesis through v5.4.2', 1)
+          text = text.replace('The latest regression-verified public release covered by this synthesis is:\n\n```text\nv5.4.1\nrelease tag commit: 7f5454c9c8e58ca9bd0728d13210d6c5a6424bc1\n```\n\nFinal release verification recorded for v5.4.1:\n\n```text\nPython 3.11 CI: PASS\nPython 3.13 CI: PASS\nPython 3.13 test inventory: 124 collected / 124 passed\nV5 INTEGRITY: PASS\nRESEARCH PROVENANCE: PASS\nportable L1/L2 liveness: PASS\nbehavioral obedience: UNKNOWN / not claimed\n```', 'The latest regression-verified public release covered by this synthesis is:\n\n```text\nv5.4.2\nrelease tag commit: 94bfd13f9c4818a949775bd73c1c0d91ce6a3116\n```\n\nFinal release verification recorded for v5.4.2:\n\n```text\nPython 3.11 CI: PASS\nPython 3.13 CI: PASS\nPython 3.13 test inventory: 126 collected / 126 passed\nV5 INTEGRITY: PASS\nRESEARCH PROVENANCE: PASS\nportable L1/L2 liveness: PASS\nuser-pressure policy invariant: present + regression-locked\nbehavioral obedience: UNKNOWN / not claimed\n```')
+          section = '''\n---\n\n# v5.4.2 policy patch disposition\n\nv5.4.2 is a narrow always-loaded policy patch on top of v5.4.1. It does not add a new evidence state or risk tier.\n\nAdded invariant:\n\n```text\nUSER PRESSURE DOES NOT UPGRADE EVIDENCE STATE\n\nINCONCLUSIVE + user pressure + no new evidence\n!= SUPPORTED_WITH_SCOPE\n```\n\nThe active skill now states that evidence state may strengthen only when new evidence, a stronger observation, or a legitimately stronger verification basis has been obtained. User confidence, repetition, authority, preference, urgency, frustration or pressure is not evidence by itself.\n\nThe policy also separates human/user governance from factual truth: users control goals, scope, authorization, acceptable risk and normative choices, but factual assertions remain claims or explicit assumptions unless established by the available evidence.\n\nExecutable additions:\n\n- `references/adversarial-cases.md` case 31 - user pressure to upgrade evidence;\n- `tests/test_v542_policy_regressions.py` - locks policy presence and case-31 contract;\n- exact release metadata/checker/liveness/schema title aligned to 5.4.2.\n\nRelease evidence is recorded in [`v5.4.2-release-status.md`](v5.4.2-release-status.md). Final PR CI passed on Python 3.11 and 3.13; Python 3.13 collected and passed 126 tests, followed by integrity, provenance and portable liveness PASS. The tested PR merge tree and released main merge tree were compared and contained zero changed files.\n\nThis proves the repository contract for the tested tree. It does not prove models obey the new invariant in real conversations.\n'''
+          if '# v5.4.2 policy patch disposition' not in text:
+              marker = '\n# Open frontier after v5.4.1\n'
+              if marker not in text: raise SystemExit('SUMMARY frontier marker missing')
+              text = text.replace(marker, section + '\n# Open frontier after v5.4.2\n', 1)
+          else:
+              text = text.replace('# Open frontier after v5.4.1', '# Open frontier after v5.4.2')
+          text = text.replace('The next high-value project phase is a real behavioral benchmark comparing control sessions with sessions where AHP is explicitly loaded.', 'The next high-value project phase is a real behavioral benchmark comparing control sessions with sessions where AHP is explicitly loaded, including direct measurement of the v5.4.2 user-pressure invariant.')
+          p.write_text(text, encoding='utf-8')
+
+          # README structural map and audit trail current synthesis wording.
+          p = Path('README.md'); text = p.read_text(encoding='utf-8')
+          text = text.replace('├── TODO.md                               # post-v5.4.1 roadmap', '├── TODO.md                               # post-v5.4.2 roadmap')
+          text = text.replace('│   ├── SUMMARY.md                        # top-level synthesis through v5.4.1', '│   ├── SUMMARY.md                        # top-level synthesis through v5.4.2')
+          old = '│   ├── v5.4.1-hardening-status.md        # final v5.4.1 release evidence/status\n│   ├── CANONICAL-AGENT-AUDIT-PROMPT.md'
+          new = '│   ├── v5.4.2-release-status.md          # final v5.4.2 release evidence/status\n│   ├── v5.4.1-hardening-status.md        # historical v5.4.1 release evidence\n│   ├── CANONICAL-AGENT-AUDIT-PROMPT.md'
+          if old not in text: raise SystemExit('README audit map marker missing')
+          text = text.replace(old, new, 1)
+          p.write_text(text, encoding='utf-8')
+          PY
+
+      - name: Sanity
+        run: |
+          set -euxo pipefail
+          grep -q 'v5.4.2' PROJECT-HANDOFF.md
+          grep -q '126 collected / 126 passed' TODO.md
+          grep -q 'synthesis through v5.4.2' AUDITS/SUMMARY.md
+          grep -q 'v5.4.2-release-status.md' README.md
+          git diff --check
+
+      - name: Commit continuity sync
+        run: |
+          set -euxo pipefail
+          git config user.name "AHP continuity bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add PROJECT-HANDOFF.md TODO.md AUDITS/SUMMARY.md README.md
+          git commit -m "docs: sync continuity state through v5.4.2"
+          git push origin HEAD:main
