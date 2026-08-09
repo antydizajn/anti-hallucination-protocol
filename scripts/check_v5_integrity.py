@@ -23,7 +23,7 @@ from typing import Any
 
 try:
     import yaml
-except ImportError:  # pragma: no cover - environment failure, not a data case
+except ImportError:  # pragma: no cover
     yaml = None
 
 EXPECTED_VERSION = "5.4.0"
@@ -128,6 +128,14 @@ def parse_frontmatter(text: str) -> tuple[dict[str, Any], str, list[str]]:
     return data, body, errors
 
 
+def _inside_root(root: Path, target: Path) -> bool:
+    try:
+        target.resolve(strict=True).relative_to(root.resolve())
+        return True
+    except (OSError, ValueError):
+        return False
+
+
 def validate(root: Path) -> list[str]:
     errors: list[str] = []
     skill = root / "SKILL.md"
@@ -138,6 +146,8 @@ def validate(root: Path) -> list[str]:
         text = skill.read_text(encoding="utf-8")
     except (OSError, UnicodeError) as exc:
         return [f"SKILL.md could not be read as UTF-8: {exc}"]
+    if text.startswith("\ufeff"):
+        text = text[1:]
 
     frontmatter, body, frontmatter_errors = parse_frontmatter(text)
     errors.extend(frontmatter_errors)
@@ -169,8 +179,11 @@ def validate(root: Path) -> list[str]:
             errors.append("SKILL.md frontmatter metadata.hermes must be a mapping")
 
     for rel in REQUIRED_PATHS:
-        if not (root / rel).is_file():
+        target = root / rel
+        if not target.is_file():
             errors.append(f"required file missing: {rel}")
+        elif not _inside_root(root, target):
+            errors.append(f"required file escapes skill root or cannot be resolved safely: {rel}")
 
     for state in REQUIRED_STATES:
         if state not in body:
@@ -188,6 +201,8 @@ def validate(root: Path) -> list[str]:
         target = root / rel
         if not target.exists():
             errors.append(f"SKILL.md references missing local path: {rel}")
+        elif not _inside_root(root, target):
+            errors.append(f"SKILL.md references path escaping skill root: {rel}")
 
     return errors
 
