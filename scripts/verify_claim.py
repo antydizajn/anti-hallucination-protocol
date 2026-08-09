@@ -20,6 +20,7 @@ import os
 import re
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 from typing import NoReturn
 
@@ -115,8 +116,8 @@ def read_text(path: Path) -> tuple[str | None, str | None]:
 
 
 def mode_file_contains(args: argparse.Namespace) -> int:
-    if args.pattern == "":
-        fail("file-contains pattern must not be empty")
+    if not args.pattern.strip():
+        fail("file-contains pattern must not be empty or whitespace-only")
 
     path = Path(args.path)
     if not path.is_file():
@@ -182,8 +183,8 @@ def mode_file_contains(args: argparse.Namespace) -> int:
 def mode_file_line(args: argparse.Namespace) -> int:
     if args.line < 1:
         fail("--line must be >= 1")
-    if args.expected == "":
-        fail("file-line expected text must not be empty")
+    if not args.expected.strip():
+        fail("file-line expected text must not be empty or whitespace-only")
 
     path = Path(args.path)
     if not path.is_file():
@@ -243,17 +244,43 @@ def mode_command_output(args: argparse.Namespace) -> int:
     command = list(args.command)
     if not command:
         fail("command-output requires a command after --")
-    if args.expected == "":
-        fail("--expected must not be empty")
+    if not args.expected.strip():
+        fail("--expected must not be empty or whitespace-only")
 
     try:
-        completed = subprocess.run(
-            command,
-            capture_output=True,
-            text=False,
-            timeout=args.timeout,
-            check=False,
-        )
+        # Spool process output to temporary files. This avoids retaining arbitrarily
+        # large stdout/stderr in memory before the evidentiary size limit is checked.
+        with tempfile.TemporaryFile() as stdout_file, tempfile.TemporaryFile() as stderr_file:
+            completed = subprocess.run(
+                command,
+                stdout=stdout_file,
+                stderr=stderr_file,
+                text=False,
+                timeout=args.timeout,
+                check=False,
+            )
+            stdout_size = stdout_file.tell()
+            stderr_size = stderr_file.tell()
+            total_bytes = stdout_size + stderr_size
+            if total_bytes > args.max_output_bytes:
+                emit(
+                    "ERROR",
+                    claim="command output contains expected text",
+                    evidence={
+                        "command": command,
+                        "returncode": completed.returncode,
+                        "stdout_bytes": stdout_size,
+                        "stderr_bytes": stderr_size,
+                        "captured_output_bytes": total_bytes,
+                        "max_output_bytes": args.max_output_bytes,
+                    },
+                    detail="captured output exceeded verifier limit; output was not accepted as evidence",
+                )
+                return ERROR
+            stdout_file.seek(0)
+            stderr_file.seek(0)
+            stdout_bytes = stdout_file.read()
+            stderr_bytes = stderr_file.read()
     except subprocess.TimeoutExpired as exc:
         emit(
             "ERROR",
@@ -268,23 +295,6 @@ def mode_command_output(args: argparse.Namespace) -> int:
             claim="command output contains expected text",
             evidence={"command": command},
             detail=f"command could not be executed: {exc}",
-        )
-        return ERROR
-
-    stdout_bytes = completed.stdout or b""
-    stderr_bytes = completed.stderr or b""
-    total_bytes = len(stdout_bytes) + len(stderr_bytes)
-    if total_bytes > args.max_output_bytes:
-        emit(
-            "ERROR",
-            claim="command output contains expected text",
-            evidence={
-                "command": command,
-                "returncode": completed.returncode,
-                "captured_output_bytes": total_bytes,
-                "max_output_bytes": args.max_output_bytes,
-            },
-            detail="captured output exceeded verifier limit; output was not accepted as evidence",
         )
         return ERROR
 
@@ -306,8 +316,6 @@ def mode_command_output(args: argparse.Namespace) -> int:
         return ERROR
 
     assert stdout is not None and stderr is not None
-    stdout_match = args.expected in stdout
-    stderr_match = args.expected in stderr
     evidence = {
         "command": command,
         "returncode": completed.returncode,
@@ -326,7 +334,7 @@ def mode_command_output(args: argparse.Namespace) -> int:
         )
         return ERROR
 
-    if stdout_match or stderr_match:
+    if args.expected in stdout or args.expected in stderr:
         emit(
             "FOUND",
             claim="command output contains expected text",
