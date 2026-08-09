@@ -166,3 +166,44 @@ def test_schema_valued_additional_properties_fails_closed():
     }
     errors = evmod.validate_schema_definition(schema)
     assert any("schema-valued additionalProperties is not implemented" in e for e in errors)
+
+
+def test_whitespace_literal_file_contains_is_error():
+    with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8") as handle:
+        handle.write("anything with spaces\n")
+        handle.flush()
+        code, payload = run_verifier("file-contains", handle.name, "   ")
+    assert code == 2
+    assert payload["status"] == "ERROR"
+
+
+def test_whitespace_regex_file_contains_is_error():
+    with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8") as handle:
+        handle.write("anything\n")
+        handle.flush()
+        code, payload = run_verifier("file-contains", handle.name, "   ", "--regex")
+    assert code == 2
+    assert payload["status"] == "ERROR"
+
+
+def test_whitespace_file_line_expected_is_error():
+    with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8") as handle:
+        handle.write("anything\n")
+        handle.flush()
+        code, payload = run_verifier("file-line", handle.name, "1", "   ")
+    assert code == 2
+    assert payload["status"] == "ERROR"
+
+
+def test_whitespace_command_expected_is_error():
+    code, payload = run_verifier(
+        "command-output",
+        "--expected",
+        "   ",
+        "--",
+        sys.executable,
+        "-c",
+        "print('anything')",
+    )
+    assert code == 2
+    assert payload["status"] == "ERROR"
