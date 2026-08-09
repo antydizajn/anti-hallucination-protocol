@@ -17,8 +17,8 @@ spec.loader.exec_module(mod)
 def test_quoted_duplicate_top_level_key_is_rejected():
     text = '''---
 name: anti-hallucination-protocol
-version: 5.4.1
-"version": 5.4.2
+version: 5.4.2
+"version": 5.4.3
 description: x
 author: x
 license: MIT
