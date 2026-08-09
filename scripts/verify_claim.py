@@ -115,6 +115,9 @@ def read_text(path: Path) -> tuple[str | None, str | None]:
 
 
 def mode_file_contains(args: argparse.Namespace) -> int:
+    if args.pattern == "":
+        fail("file-contains pattern must not be empty")
+
     path = Path(args.path)
     if not path.is_file():
         kind = _path_kind(path)
@@ -179,6 +182,8 @@ def mode_file_contains(args: argparse.Namespace) -> int:
 def mode_file_line(args: argparse.Namespace) -> int:
     if args.line < 1:
         fail("--line must be >= 1")
+    if args.expected == "":
+        fail("file-line expected text must not be empty")
 
     path = Path(args.path)
     if not path.is_file():
@@ -301,7 +306,8 @@ def mode_command_output(args: argparse.Namespace) -> int:
         return ERROR
 
     assert stdout is not None and stderr is not None
-    output = stdout + stderr
+    stdout_match = args.expected in stdout
+    stderr_match = args.expected in stderr
     evidence = {
         "command": command,
         "returncode": completed.returncode,
@@ -320,12 +326,12 @@ def mode_command_output(args: argparse.Namespace) -> int:
         )
         return ERROR
 
-    if args.expected in output:
+    if stdout_match or stderr_match:
         emit(
             "FOUND",
             claim="command output contains expected text",
             evidence=evidence,
-            detail="command exited with required code and output contained expected text",
+            detail="command exited with required code and stdout or stderr contained expected text",
         )
         return FOUND
 
