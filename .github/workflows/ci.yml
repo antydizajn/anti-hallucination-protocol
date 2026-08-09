@@ -1,0 +1,33 @@
+name: AHP regression suite
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  regression:
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.11', '3.13']
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install test dependencies
+        run: python -m pip install --disable-pip-version-check pytest pyyaml
+      - name: Unit and adversarial tests
+        run: python -m pytest tests/ -v
+      - name: Integrity contract
+        run: python scripts/check_v5_integrity.py --root .
+      - name: Offline research provenance
+        run: python scripts/check_research_provenance.py --root .
+      - name: Portable liveness
+        run: AHP_SKILL_DIR="$(pwd)" bash scripts/liveness_check.sh
