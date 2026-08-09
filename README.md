@@ -188,7 +188,25 @@ Place the skill directory at:
 ~/.hermes/skills/software-development/anti-hallucination-protocol/
 ```
 
-Then start a new Hermes session and verify discovery using the currently available Hermes skill tooling.
+### Mandatory startup integration
+
+Installing the files is **not** the same thing as activating the protocol for a session. Add Anti-Hallucination Protocol to the startup/boot procedure that runs at the beginning of **every Hermes session**, before ordinary task work begins.
+
+If your workspace uses a `/start` skill or equivalent boot skill, edit that procedure so its minimal boot explicitly loads:
+
+```text
+skill_view(name="anti-hallucination-protocol")
+```
+
+A healthy boot should visibly include a successful skill load comparable to:
+
+```text
+📚 skill  anti-hallucination-protocol
+```
+
+Load AHP alongside other baseline session controls such as identity/memory and anti-sycophancy policy. Do not rely on the skill merely existing under `~/.hermes/skills/`; if the startup log does not show that it was loaded, treat it as **installed but not active for startup**.
+
+After wiring the startup procedure, start a completely new Hermes session and verify that AHP is loaded during boot. The exact surrounding boot sequence is workspace-specific; the invariant is that `anti-hallucination-protocol` is explicitly loaded before consequential work starts.
 
 ---
 
