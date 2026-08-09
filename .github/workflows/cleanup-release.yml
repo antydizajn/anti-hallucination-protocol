@@ -1,0 +1,30 @@
+name: Cleanup release branches
+
+on:
+  push:
+    branches: [main]
+    paths: [.github/workflows/cleanup-release.yml]
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Delete temporary branches and self-remove
+        run: |
+          set -euxo pipefail
+          for branch in audit-current-main-tests v5.4.1-hardening v541-patch-runner; do
+            if git ls-remote --exit-code --heads origin "refs/heads/$branch" >/dev/null 2>&1; then
+              git push origin --delete "$branch"
+            fi
+          done
+          git config user.name "AHP release cleanup"
+          git config user.email "actions@users.noreply.github.com"
+          git rm .github/workflows/cleanup-release.yml
+          git commit -m "chore: remove one-shot release cleanup"
+          git push origin HEAD:main
