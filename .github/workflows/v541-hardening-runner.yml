@@ -1,0 +1,146 @@
+name: v5.4.1 hardening runner
+
+on:
+  push:
+    branches: [v541-patch-runner]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  harden:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: v5.4.1-hardening
+          fetch-depth: 0
+      - name: Apply audited hardening fixes
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace(path, old, new):
+              p = Path(path)
+              text = p.read_text(encoding='utf-8')
+              if old not in text:
+                  raise SystemExit(f'expected patch anchor missing in {path}: {old[:80]!r}')
+              p.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          # verify_claim.py: empty matchers must never produce FOUND.
+          replace(
+              'scripts/verify_claim.py',
+              'def mode_file_contains(args: argparse.Namespace) -> int:\n    path = Path(args.path)\n',
+              'def mode_file_contains(args: argparse.Namespace) -> int:\n    if args.pattern == "":\n        fail("file-contains pattern must not be empty")\n\n    path = Path(args.path)\n',
+          )
+          replace(
+              'scripts/verify_claim.py',
+              'def mode_file_line(args: argparse.Namespace) -> int:\n    if args.line < 1:\n        fail("--line must be >= 1")\n\n    path = Path(args.path)\n',
+              'def mode_file_line(args: argparse.Namespace) -> int:\n    if args.line < 1:\n        fail("--line must be >= 1")\n    if args.expected == "":\n        fail("file-line expected text must not be empty")\n\n    path = Path(args.path)\n',
+          )
+          replace(
+              'scripts/verify_claim.py',
+              '    assert stdout is not None and stderr is not None\n    output = stdout + stderr\n    evidence = {\n',
+              '    assert stdout is not None and stderr is not None\n    stdout_match = args.expected in stdout\n    stderr_match = args.expected in stderr\n    evidence = {\n',
+          )
+          replace(
+              'scripts/verify_claim.py',
+              '    if args.expected in output:\n        emit(\n            "FOUND",\n            claim="command output contains expected text",\n            evidence=evidence,\n            detail="command exited with required code and output contained expected text",\n        )\n',
+              '    if stdout_match or stderr_match:\n        emit(\n            "FOUND",\n            claim="command output contains expected text",\n            evidence=evidence,\n            detail="command exited with required code and stdout or stderr contained expected text",\n        )\n',
+          )
+
+          # evidence checker: close deterministic gaps that are visible from the record itself.
+          replace(
+              'scripts/check_evidence_record.py',
+              '    errors: list[str] = []\n    evidence = record["evidence"]\n',
+              '    errors: list[str] = []\n    for field in ("claim_id", "claim"):\n        if not _nonempty(record.get(field)):\n            errors.append(f"{field} must be a non-empty non-whitespace string")\n\n    evidence = record["evidence"]\n    for index, item in enumerate(evidence):\n        if isinstance(item, dict) and not _nonempty(item.get("source")):\n            errors.append(f"evidence item #{index + 1} source must be a non-empty non-whitespace string")\n',
+          )
+          replace(
+              'scripts/check_evidence_record.py',
+              '    if state == "NOT_FOUND_WITHIN_SCOPE" and entails:\n        errors.append("NOT_FOUND_WITHIN_SCOPE cannot coexist with ENTAILS evidence")\n',
+              '    if state == "NOT_FOUND_WITHIN_SCOPE" and not _nonempty(scope):\n        errors.append("NOT_FOUND_WITHIN_SCOPE requires an explicit non-empty scope")\n    if state == "NOT_FOUND_WITHIN_SCOPE" and entails:\n        errors.append("NOT_FOUND_WITHIN_SCOPE cannot coexist with ENTAILS evidence")\n    if state == "PARTIAL" and not any(e["entailment"] in {"ENTAILS", "PARTIAL"} for e in evidence):\n        errors.append("PARTIAL requires at least one ENTAILS or PARTIAL evidence item")\n',
+          )
+          replace(
+              'scripts/check_evidence_record.py',
+              '        groups: list[str] = []\n        for item in verified_independent:\n',
+              '        groups: list[str] = []\n        sources: list[str] = []\n        source_identities: list[str] = []\n        for item in verified_independent:\n',
+          )
+          replace(
+              'scripts/check_evidence_record.py',
+              '            else:\n                groups.append(group.strip())\n        if len(groups) != len(set(groups)):\n            errors.append(\n                "T3 verified independent supporting evidence cannot reuse the same independence_group"\n            )\n',
+              '            else:\n                groups.append(group.strip())\n            source = item.get("source")\n            identity = item.get("source_identity")\n            if _nonempty(source):\n                sources.append(source.strip())\n            if _nonempty(identity):\n                source_identities.append(identity.strip())\n        if len(groups) != len(set(groups)):\n            errors.append(\n                "T3 verified independent supporting evidence cannot reuse the same independence_group"\n            )\n        if len(sources) != len(set(sources)):\n            errors.append(\n                "T3 verified independent supporting evidence cannot reuse the same source under different independence groups"\n            )\n        if len(source_identities) != len(set(source_identities)):\n            errors.append(\n                "T3 verified independent supporting evidence cannot reuse the same source_identity under different independence groups"\n            )\n',
+          )
+          replace(
+              'scripts/check_evidence_record.py',
+              '    items = schema.get("items")\n    if items is not None:\n        errors.extend(validate_schema_definition(items, f"{path}.items"))\n\n    return errors\n',
+              '    items = schema.get("items")\n    if items is not None:\n        errors.extend(validate_schema_definition(items, f"{path}.items"))\n\n    additional = schema.get("additionalProperties")\n    if isinstance(additional, dict):\n        errors.append(f"{path}.additionalProperties: schema-valued additionalProperties is not implemented")\n    elif additional is not None and not isinstance(additional, bool):\n        errors.append(f"{path}.additionalProperties: must be boolean in the supported schema profile")\n\n    return errors\n',
+          )
+
+          # Integrity: align path semantics with Hermes and accept UTF-8 BOM like Hermes does.
+          replace(
+              'scripts/check_v5_integrity.py',
+              '    try:\n        text = skill.read_text(encoding="utf-8")\n    except (OSError, UnicodeError) as exc:\n        return [f"SKILL.md could not be read as UTF-8: {exc}"]\n\n    frontmatter, body, frontmatter_errors = parse_frontmatter(text)\n',
+              '    try:\n        text = skill.read_text(encoding="utf-8")\n    except (OSError, UnicodeError) as exc:\n        return [f"SKILL.md could not be read as UTF-8: {exc}"]\n    if text.startswith("\\ufeff"):\n        text = text[1:]\n\n    frontmatter, body, frontmatter_errors = parse_frontmatter(text)\n',
+          )
+          replace(
+              'scripts/check_v5_integrity.py',
+              '    for rel in REQUIRED_PATHS:\n        if not (root / rel).is_file():\n            errors.append(f"required file missing: {rel}")\n',
+              '    root_resolved = root.resolve()\n    for rel in REQUIRED_PATHS:\n        target = root / rel\n        if not target.is_file():\n            errors.append(f"required file missing: {rel}")\n            continue\n        try:\n            target.resolve(strict=True).relative_to(root_resolved)\n        except (OSError, ValueError):\n            errors.append(f"required file escapes skill root or cannot be resolved safely: {rel}")\n',
+          )
+
+          # Align active contamination vocabulary with executable model.
+          replace(
+              'references/untrusted-evidence-boundary.md',
+              '- `CLEAN` - no control-plane anomaly observed within inspected content. This is not a proof of safety.',
+              '- `CLEAN_OBSERVED` - no control-plane anomaly observed within inspected content. This is not a proof of safety.',
+          )
+
+          # Fix two bad integrity tests rather than weakening the checker.
+          replace(
+              'tests/test_v5_integrity.py',
+              'def test_trailing_unterminated_flow_sequence_fails(tmp_path):\n    fake = valid_skill().replace("description: Test fixture", "description: Test fixture [")\n    root = write_minimal_tree(tmp_path, fake)\n    errors = mod.validate(root)\n    assert any("not valid YAML" in e for e in errors)\n',
+              'def test_trailing_bracket_inside_plain_scalar_is_valid_yaml(tmp_path):\n    fake = valid_skill().replace("description: Test fixture", "description: Test fixture [")\n    root = write_minimal_tree(tmp_path, fake)\n    assert mod.validate(root) == []\n',
+          )
+          replace(
+              'tests/test_v5_integrity.py',
+              'def test_metadata_hermes_must_be_mapping(tmp_path):\n    fake = valid_skill().replace("  hermes:\\n", "  hermes: nope\\n")\n    root = write_minimal_tree(tmp_path, fake)\n    errors = mod.validate(root)\n    assert any("metadata.hermes must be a mapping" in e for e in errors)\n',
+              'def test_metadata_hermes_must_be_mapping(tmp_path):\n    fake = valid_skill().replace("  hermes:\\n    tags: [verification]", "  hermes: nope")\n    root = write_minimal_tree(tmp_path, fake)\n    errors = mod.validate(root)\n    assert any("metadata.hermes must be a mapping" in e for e in errors)\n',
+          )
+
+          # Add verifier regressions before the final unittest guard.
+          p = Path('tests/test_verify_claim.py')
+          text = p.read_text(encoding='utf-8')
+          anchor = '\n\nif __name__ == "__main__":\n    unittest.main()\n'
+          tests = '''\n    def test_empty_literal_file_contains_is_error(self) -> None:\n        with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8") as handle:\n            handle.write("anything\\n")\n            handle.flush()\n            code, payload = run_verifier("file-contains", handle.name, "")\n        self.assertEqual(code, 2)\n        self.assertEqual(payload["status"], "ERROR")\n\n    def test_empty_regex_file_contains_is_error(self) -> None:\n        with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8") as handle:\n            handle.write("anything\\n")\n            handle.flush()\n            code, payload = run_verifier("file-contains", handle.name, "", "--regex")\n        self.assertEqual(code, 2)\n        self.assertEqual(payload["status"], "ERROR")\n\n    def test_empty_file_line_expected_is_error(self) -> None:\n        with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8") as handle:\n            handle.write("anything\\n")\n            handle.flush()\n            code, payload = run_verifier("file-line", handle.name, "1", "")\n        self.assertEqual(code, 2)\n        self.assertEqual(payload["status"], "ERROR")\n\n    def test_command_match_cannot_be_synthesized_across_stdout_stderr_boundary(self) -> None:\n        code, payload = run_verifier(\n            "command-output",\n            "--expected",\n            "MAGIC",\n            "--",\n            sys.executable,\n            "-c",\n            "import sys; sys.stdout.write('MAG'); sys.stderr.write('IC')",\n        )\n        self.assertEqual(code, 1)\n        self.assertEqual(payload["status"], "NOT_FOUND")\n'''
+          if anchor not in text:
+              raise SystemExit('verify test anchor missing')
+          p.write_text(text.replace(anchor, tests + anchor, 1), encoding='utf-8')
+
+          # Add evidence regressions.
+          p = Path('tests/test_evidence_record.py')
+          text = p.read_text(encoding='utf-8')
+          text += '''\n\ndef test_not_found_requires_explicit_scope():\n    errors = mod.validate(rec(state="NOT_FOUND_WITHIN_SCOPE", evidence=[ev(entailment="UNCLEAR")], scope=""))\n    assert any("requires an explicit non-empty scope" in e for e in errors)\n\ndef test_t3_same_source_cannot_claim_two_independence_groups():\n    errors = mod.validate(rec(risk="T3", evidence=[\n        ev(source="same-source", source_identity="identity-a", independence_group="group-a"),\n        ev(source="same-source", source_identity="identity-b", independence_group="group-b"),\n    ]))\n    assert any("cannot reuse the same source under different independence groups" in e for e in errors)\n\ndef test_t3_same_source_identity_cannot_claim_two_independence_groups():\n    errors = mod.validate(rec(risk="T3", evidence=[\n        ev(source="source-a", source_identity="same-identity", independence_group="group-a"),\n        ev(source="source-b", source_identity="same-identity", independence_group="group-b"),\n    ]))\n    assert any("cannot reuse the same source_identity under different independence groups" in e for e in errors)\n\ndef test_whitespace_claim_id_is_rejected():\n    r = rec(); r["claim_id"] = "   "\n    assert any("claim_id must be" in e for e in mod.validate(r))\n\ndef test_whitespace_claim_is_rejected():\n    r = rec(); r["claim"] = "   "\n    assert any("claim must be" in e for e in mod.validate(r))\n\ndef test_whitespace_source_is_rejected():\n    r = rec(); r["evidence"][0]["source"] = "   "\n    assert any("source must be" in e for e in mod.validate(r))\n\ndef test_partial_requires_some_supporting_or_partial_evidence():\n    errors = mod.validate(rec(state="PARTIAL", evidence=[ev(entailment="IRRELEVANT")]))\n    assert any("PARTIAL requires at least one ENTAILS or PARTIAL" in e for e in errors)\n\ndef test_schema_valued_additional_properties_is_rejected_fail_closed():\n    schema = copy.deepcopy(mod.load_schema())\n    schema["properties"]["evidence"]["items"]["additionalProperties"] = {"type": "string", "pattern": "^x$"}\n    errors = mod.validate_schema_definition(schema)\n    assert any("schema-valued additionalProperties is not implemented" in e for e in errors)\n'''
+          p.write_text(text, encoding='utf-8')
+
+          # Add integrity symlink/BOM regressions.
+          p = Path('tests/test_v5_integrity.py')
+          text = p.read_text(encoding='utf-8')
+          text += '''\n\ndef test_utf8_bom_before_frontmatter_is_accepted_like_hermes(tmp_path):\n    root = write_minimal_tree(tmp_path, "\\ufeff" + valid_skill())\n    assert mod.validate(root) == []\n\ndef test_required_reference_symlink_escape_is_rejected(tmp_path):\n    import os\n    root = write_minimal_tree(tmp_path, valid_skill())\n    target = root / "references" / "v5-gap-map.md"\n    outside = tmp_path / "outside.md"\n    outside.write_text("outside", encoding="utf-8")\n    target.unlink()\n    try:\n        os.symlink(outside, target)\n    except (OSError, NotImplementedError):\n        import pytest\n        pytest.skip("symlinks unsupported")\n    errors = mod.validate(root)\n    assert any("escapes skill root" in e for e in errors)\n'''
+          p.write_text(text, encoding='utf-8')
+          PY
+
+      - name: Run complete regression suite
+        run: |
+          python3 -m pytest tests/ -v
+          python3 scripts/check_v5_integrity.py --root .
+          python3 scripts/check_research_provenance.py --root .
+          AHP_SKILL_DIR="$(pwd)" bash scripts/liveness_check.sh
+
+      - name: Commit verified hardening to target branch
+        run: |
+          git config user.name "AHP hardening runner"
+          git config user.email "actions@users.noreply.github.com"
+          git add scripts tests references/untrusted-evidence-boundary.md
+          git commit -m "harden v5.4.1 deterministic false-positive boundaries"
+          git push origin HEAD:v5.4.1-hardening
