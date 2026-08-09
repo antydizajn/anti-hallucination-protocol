@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import importlib.util
+import os
 import sys
 from pathlib import Path
+
+import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "scripts" / "check_v5_integrity.py"
@@ -130,8 +133,7 @@ def test_malformed_top_level_line_fails_yaml_parse(tmp_path):
         "description: Test fixture\nTHIS IS NOT A MAPPING",
     )
     root = write_minimal_tree(tmp_path, fake)
-    errors = mod.validate(root)
-    assert errors
+    assert mod.validate(root)
 
 
 def test_leading_unterminated_flow_sequence_fails(tmp_path):
@@ -141,11 +143,10 @@ def test_leading_unterminated_flow_sequence_fails(tmp_path):
     assert any("not valid YAML" in e for e in errors)
 
 
-def test_trailing_unterminated_flow_sequence_fails(tmp_path):
+def test_trailing_bracket_inside_plain_scalar_is_valid_yaml(tmp_path):
     fake = valid_skill().replace("description: Test fixture", "description: Test fixture [")
     root = write_minimal_tree(tmp_path, fake)
-    errors = mod.validate(root)
-    assert any("not valid YAML" in e for e in errors)
+    assert mod.validate(root) == []
 
 
 def test_unterminated_quoted_scalar_fails(tmp_path):
@@ -171,8 +172,7 @@ def test_colon_rich_plain_scalar_is_rejected_if_yaml_reinterprets_it(tmp_path):
         "description: malformed: scalar",
     )
     root = write_minimal_tree(tmp_path, fake)
-    errors = mod.validate(root)
-    assert errors
+    assert mod.validate(root)
 
 
 def test_platforms_must_parse_as_list(tmp_path):
@@ -186,7 +186,10 @@ def test_platforms_must_parse_as_list(tmp_path):
 
 
 def test_metadata_hermes_must_be_mapping(tmp_path):
-    fake = valid_skill().replace("  hermes:\n", "  hermes: nope\n")
+    fake = valid_skill().replace(
+        "  hermes:\n    tags: [verification]\n    category: software-development",
+        "  hermes: nope",
+    )
     root = write_minimal_tree(tmp_path, fake)
     errors = mod.validate(root)
     assert any("metadata.hermes must be a mapping" in e for e in errors)
@@ -207,3 +210,22 @@ def test_missing_required_frontmatter_key_fails(tmp_path):
     root = write_minimal_tree(tmp_path, fake)
     errors = mod.validate(root)
     assert any("frontmatter missing required key: license" in e for e in errors)
+
+
+def test_utf8_bom_before_frontmatter_is_accepted_like_hermes(tmp_path):
+    root = write_minimal_tree(tmp_path, "\ufeff" + valid_skill())
+    assert mod.validate(root) == []
+
+
+def test_required_reference_symlink_escape_is_rejected(tmp_path):
+    root = write_minimal_tree(tmp_path, valid_skill())
+    target = root / "references" / "v5-gap-map.md"
+    outside = tmp_path / "outside.md"
+    outside.write_text("outside", encoding="utf-8")
+    target.unlink()
+    try:
+        os.symlink(outside, target)
+    except (OSError, NotImplementedError):
+        pytest.skip("symlinks unsupported")
+    errors = mod.validate(root)
+    assert any("escapes skill root" in e for e in errors)
