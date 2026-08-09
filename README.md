@@ -255,6 +255,10 @@ The multi-model audit corpus and synthesis are archived under [`AUDITS/`](AUDITS
 
 `AUDITS/SUMMARY.md` separates execution-capable audits from document/static reviews, records conflicts and rejected severity claims, and tracks how findings were dispositioned in later releases. Auditor count is not treated as truth; reproduced failure mechanisms outrank model votes.
 
+For a fresh independent audit, use [`AUDITS/CANONICAL-AGENT-AUDIT-PROMPT.md`](AUDITS/CANONICAL-AGENT-AUDIT-PROMPT.md). It includes five iterations of the methodology and a final blind-first copy-paste prompt for independent agents.
+
+For a completely fresh continuation session, start with [`PROJECT-HANDOFF.md`](PROJECT-HANDOFF.md). It contains a three-iteration cold-start reconstruction of the project state, historical decisions, release evidence, startup integration, and the next behavioral-evaluation frontier. Treat the handoff as navigation, then verify current reality from the repository.
+
 ---
 
 ## What it does not prove
@@ -286,8 +290,10 @@ This is a protocol for making unsupported certainty harder, not impossible.
 anti-hallucination-protocol/
 ├── SKILL.md
 ├── README.md
+├── PROJECT-HANDOFF.md
 ├── .github/workflows/ci.yml
 ├── AUDITS/
+│   ├── CANONICAL-AGENT-AUDIT-PROMPT.md
 │   ├── SUMMARY.md
 │   └── ...audit reports
 ├── assets/
