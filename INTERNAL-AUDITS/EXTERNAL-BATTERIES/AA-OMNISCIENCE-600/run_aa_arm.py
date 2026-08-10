@@ -71,10 +71,15 @@ def profile_home(profile: str) -> tuple[Path, Path]:
     return cfg_path.parent, cfg_path
 
 
-def configure_no_tools(cfg_path: Path) -> None:
+def load_profile_config(cfg_path: Path) -> dict:
     data = yaml.safe_load(cfg_path.read_text(encoding="utf-8")) or {}
     if not isinstance(data, dict):
         raise RuntimeError("profile config root must be a mapping")
+    return data
+
+
+def configure_no_tools(cfg_path: Path) -> None:
+    data = load_profile_config(cfg_path)
     pts = data.setdefault("platform_toolsets", {})
     if not isinstance(pts, dict):
         raise RuntimeError("platform_toolsets must be a mapping")
@@ -86,6 +91,57 @@ def configure_no_tools(cfg_path: Path) -> None:
         raise RuntimeError("context must be a mapping")
     context["engine"] = "compressor"
     cfg_path.write_text(yaml.safe_dump(data, sort_keys=False), encoding="utf-8")
+
+
+def verify_profile_context_isolation(profile_dir: Path, cfg_path: Path, arm: str) -> dict:
+    """Fail closed on profile-local prompt/context sources outside the treatment."""
+    data = load_profile_config(cfg_path)
+
+    nonempty_context_files: list[str] = []
+    for name in ("SOUL.md", "MEMORY.md", "USER.md", "AGENTS.md", "HERMES.md", ".hermes.md", "CLAUDE.md", ".cursorrules"):
+        path = profile_dir / name
+        if path.is_file() and path.read_text(encoding="utf-8", errors="replace").strip():
+            nonempty_context_files.append(name)
+    if nonempty_context_files:
+        raise RuntimeError(f"profile context contamination: non-empty files {nonempty_context_files}")
+
+    memories_dir = profile_dir / "memories"
+    memory_files = []
+    if memories_dir.is_dir():
+        memory_files = [str(p.relative_to(profile_dir)) for p in memories_dir.rglob("*") if p.is_file() and p.stat().st_size > 0]
+    if memory_files:
+        raise RuntimeError(f"profile memory contamination: {memory_files[:10]}")
+
+    skills_cfg = data.get("skills") or {}
+    if isinstance(skills_cfg, dict) and skills_cfg.get("external_dirs"):
+        raise RuntimeError("skills.external_dirs must be empty/unset")
+
+    skills_dir = profile_dir / "skills"
+    allowed = {".no-bundled-skills"}
+    if arm in {"B", "C"}:
+        allowed.add("anti-hallucination-protocol")
+    installed_entries = sorted(p.name for p in skills_dir.iterdir()) if skills_dir.is_dir() else []
+    extra_skills = sorted(name for name in installed_entries if name not in allowed)
+    if extra_skills:
+        raise RuntimeError(f"unexpected profile-local skill entries: {extra_skills}")
+
+    # These keys are treated conservatively. If a runtime/profile uses them,
+    # the benchmark must explicitly isolate or audit that mechanism first.
+    active_customization_keys = []
+    for key in ("hooks", "mcp", "mcp_servers", "plugins"):
+        value = data.get(key)
+        if value not in (None, False, "", [], {}):
+            active_customization_keys.append(key)
+    if active_customization_keys:
+        raise RuntimeError(f"unsupported profile customization state: {active_customization_keys}")
+
+    return {
+        "profile_context_files_nonempty": [],
+        "profile_memory_files_nonempty": [],
+        "skills_external_dirs": [],
+        "profile_local_skill_entries": installed_entries,
+        "customization_keys_active": [],
+    }
 
 
 def inspect_tool_surface(profile: str) -> dict:
@@ -307,8 +363,8 @@ def main() -> int:
     workdir.mkdir(parents=True, exist_ok=True)
 
     try:
-        # A previously executed workdir is not reused as model context. Resume
-        # state lives in responses.jsonl/state.db, never in the model CWD.
+        # Model CWD is rebuilt empty on every invocation/resume. Resume state is
+        # in responses.jsonl and profile state.db, never in the model workspace.
         if any(workdir.iterdir()):
             shutil.rmtree(workdir)
             workdir.mkdir(parents=True)
@@ -317,6 +373,7 @@ def main() -> int:
         questions, source_artifact_sha = load_questions(questions_path)
         profile_dir, cfg_path = profile_home(profile)
         configure_no_tools(cfg_path)
+        profile_isolation = verify_profile_context_isolation(profile_dir, cfg_path, args.arm)
         bench_home = Path(os.environ.get("AHP_BENCH_HOME", str(Path.home() / "ahp-benchmark-v01"))).expanduser().resolve()
         treatment = verify_treatment(profile, args.arm, profile_dir, bench_home, args.rep_slug)
         tool_surface = inspect_tool_surface(profile)
@@ -345,6 +402,7 @@ def main() -> int:
         "source_revision": EXPECTED_SOURCE_REVISION,
         "source_artifact_sha256": source_artifact_sha,
         "profile_config_sha256": sha256_file(cfg_path),
+        "profile_isolation": profile_isolation,
         "runner_sha256": sha256_file(Path(__file__).resolve()),
         "hermes": hermes_identity,
         "treatment": treatment,
@@ -403,6 +461,7 @@ def main() -> int:
         response = ""
         session_meta: dict[str, Any] = {}
         preload_observed: bool | None = None
+        system_prompt_sha256 = None
         error_reason = ""
         try:
             if proc.returncode != 0:
@@ -412,6 +471,7 @@ def main() -> int:
             session_id = str(session_meta["id"])
             response = persisted["answer"]
             system_prompt = str(session_meta.get("system_prompt") or "")
+            system_prompt_sha256 = sha256_bytes(system_prompt.encode("utf-8"))
             preload_observed = PRELOAD_MARKER.lower() in system_prompt.lower()
             if preload_observed != bool(treatment["expected_preload"]):
                 raise RuntimeError(
@@ -451,6 +511,7 @@ def main() -> int:
             "stderr": proc.stderr.strip() if proc.returncode != 0 else "",
             "duration_seconds": round(duration, 6),
             "session_id": session_id,
+            "system_prompt_sha256": system_prompt_sha256,
             "ahp_preload_expected": bool(treatment["expected_preload"]),
             "ahp_preload_observed": preload_observed,
             "usage": usage,
@@ -483,6 +544,7 @@ def main() -> int:
         "questions_sha256": run_identity["questions_sha256"],
         "tools_policy": "EFFECTIVE_AGENT_TOOL_COUNT_ZERO_PREFLIGHT_AND_ZERO_SESSION_TOOL_CALLS",
         "effective_tool_count_preflight": run_identity["effective_tool_count_preflight"],
+        "profile_context_isolation": "FAIL_CLOSED_PREFLIGHT",
         "ahp_preload_expected": bool(treatment["expected_preload"]),
         "treatment_load_evidence": "SESSION_SYSTEM_PROMPT_PRELOAD_MARKER",
         "started_at": started_at,
