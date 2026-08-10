@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
-"""Minimum-friction external contributor helper for AHP.
+"""Minimum-friction zero-write external contributor helper for AHP.
 
-This helper is intentionally conservative:
-- no upstream write access is required;
-- unknown permission defaults to EXTERNAL_CONTRIBUTOR;
-- generic intake never executes submitted reproducer code;
-- a successful local validation means STRUCTURALLY_VALID_SUBMISSION only;
-- completion requires a real upstream Pull Request URL.
+The helper separates the object being inspected from the branch receiving the
+contribution. This matters for audits of candidate branches: the auditor reads an
+exact target snapshot while the report itself is delivered as a clean PR to main.
+
+A successful local intake validation means STRUCTURALLY_VALID_SUBMISSION only.
 """
 from __future__ import annotations
 
@@ -18,6 +17,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -128,8 +128,7 @@ def ensure_fork(root: Path, login: str) -> None:
         if created.returncode != 0:
             detail = (created.stderr or created.stdout).strip()
             raise FlowError("NO_FORK_CAPABILITY", f"could not create/reuse fork: {detail}")
-    fork_url = f"https://github.com/{login}/anti-hallucination-protocol.git"
-    ensure_remote(root, "fork", fork_url)
+    ensure_remote(root, "fork", f"https://github.com/{login}/anti-hallucination-protocol.git")
 
 
 def list_ready_issues() -> list[dict[str, Any]]:
@@ -165,7 +164,10 @@ def choose_issue(items: list[dict[str, Any]], number: int | None) -> dict[str, A
         proc = run(["gh", "issue", "view", str(number), "--repo", UPSTREAM, "--json", "number,title,createdAt,url,body,state"], check=False)
         if proc.returncode != 0:
             raise FlowError("NO_ASSIGNED_WORK", f"Issue #{number} not available")
-        item = json.loads(proc.stdout)
+        try:
+            item = json.loads(proc.stdout)
+        except json.JSONDecodeError as exc:
+            raise FlowError("TASK_BLOCKED", "GitHub returned invalid Issue JSON") from exc
         if item.get("state") != "OPEN" or READY not in str(item.get("title", "")):
             raise FlowError("NO_ASSIGNED_WORK", f"Issue #{number} is not an open {READY} work item")
         return item
@@ -208,6 +210,22 @@ def infer_submission_type(title: str) -> str | None:
 
 def utc_now() -> str:
     return dt.datetime.now(dt.timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+
+def fetch_ref(root: Path, ref: str) -> str:
+    proc = run(["git", "fetch", "upstream", ref], cwd=root, check=False)
+    if proc.returncode != 0:
+        raise FlowError("TARGET_UNRESOLVED", f"cannot fetch ref {ref}: {(proc.stderr or proc.stdout).strip()}")
+    return run(["git", "rev-parse", "FETCH_HEAD"], cwd=root).stdout.strip()
+
+
+def create_target_worktree(root: Path, issue_number: int, target_commit: str) -> str:
+    path = Path(tempfile.mkdtemp(prefix=f"ahp-target-issue{issue_number}-"))
+    path.rmdir()
+    proc = run(["git", "worktree", "add", "--detach", str(path), target_commit], cwd=root, check=False)
+    if proc.returncode != 0:
+        raise FlowError("TARGET_UNRESOLVED", f"cannot create target worktree: {(proc.stderr or proc.stdout).strip()}")
+    return str(path)
 
 
 def scaffold_submission(root: Path, login: str, issue: dict[str, Any], stype: str, target_ref: str, target_commit: str) -> str:
@@ -278,37 +296,52 @@ def start(args: argparse.Namespace) -> int:
         print("TRUSTED_UPSTREAM_WRITER")
         print("This helper is the zero-write external path. Use AUTONOMOUS-AGENT.md for the trusted upstream workflow, or rerun with --force-external.")
         return 0
+
     print("EXTERNAL_CONTRIBUTOR")
     ensure_fork(root, login)
     issue = choose_issue(list_ready_issues(), args.issue)
+    title = str(issue.get("title", ""))
     body = str(issue.get("body", ""))
-    target_ref = args.base or target_ref_from_issue(body)
-    fetch = run(["git", "fetch", "upstream", target_ref], cwd=root, check=False)
-    if fetch.returncode != 0:
-        raise FlowError("TARGET_UNRESOLVED", f"cannot fetch target ref {target_ref}: {(fetch.stderr or fetch.stdout).strip()}")
-    target_commit = run(["git", "rev-parse", "FETCH_HEAD"], cwd=root).stdout.strip()
-    branch = f"external/{slug(login)}/issue-{issue['number']}-{slug(str(issue.get('title', 'work')))}"
-    run(["git", "switch", "-c", branch, target_commit], cwd=root)
-    stype = infer_submission_type(str(issue.get("title", "")))
+    target_ref = args.target_ref or target_ref_from_issue(body)
+    stype = infer_submission_type(title)
+
+    target_commit = fetch_ref(root, target_ref)
+    delivery_base = "main" if stype else target_ref
+    delivery_commit = fetch_ref(root, delivery_base)
+    branch = f"external/{slug(login)}/issue-{issue['number']}-{slug(title)}"
+    run(["git", "switch", "-c", branch, delivery_commit], cwd=root)
+
+    target_workspace = None
+    if target_commit != delivery_commit:
+        target_workspace = create_target_worktree(root, int(issue["number"]), target_commit)
+
     submission_id = scaffold_submission(root, login, issue, stype, target_ref, target_commit) if stype else None
     attempt_claim(int(issue["number"]), login, target_ref, target_commit, branch)
+
     data = {
         "schema": "ahp-external-contributor-state-v1",
         "mode": "EXTERNAL_CONTRIBUTOR",
         "upstream": UPSTREAM,
         "login": login,
         "issue": int(issue["number"]),
-        "issue_title": str(issue.get("title", "")),
+        "issue_title": title,
         "issue_url": str(issue.get("url", "")),
         "target_ref": target_ref,
         "target_commit": target_commit,
+        "target_workspace": target_workspace,
+        "delivery_base": delivery_base,
+        "delivery_commit": delivery_commit,
         "branch": branch,
         "submission_id": submission_id,
         "started_at": utc_now(),
     }
     save_state(root, data)
-    print(f"ISSUE #{issue['number']}: {issue.get('title', '')}")
+
+    print(f"ISSUE #{issue['number']}: {title}")
     print(f"TARGET {target_ref} @ {target_commit}")
+    if target_workspace:
+        print(f"TARGET_WORKTREE {target_workspace}")
+    print(f"DELIVERY_BASE {delivery_base} @ {delivery_commit}")
     print(f"BRANCH {branch}")
     if submission_id:
         print(f"SUBMISSION SUBMISSIONS/INBOX/{submission_id}/")
@@ -353,14 +386,15 @@ def refresh_manifest(root: Path, state: dict[str, Any], execution_occurred: bool
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
         raise FlowError("LOCAL_VALIDATION_FAILED", f"cannot read submission manifest: {exc}") from exc
+
     artifacts = []
     for path in sorted(subdir.rglob("*")):
         if path == manifest_path or not path.is_file() or path.is_symlink():
             continue
-        rel = path.relative_to(subdir).as_posix()
-        artifacts.append({"path": rel, "sha256": sha256(path)})
+        artifacts.append({"path": path.relative_to(subdir).as_posix(), "sha256": sha256(path)})
     if not artifacts:
         raise FlowError("LOCAL_VALIDATION_FAILED", "submission contains no artifacts")
+
     manifest["submitted_at"] = utc_now()
     manifest["execution_occurred"] = bool(execution_occurred)
     manifest["artifacts"] = artifacts
@@ -374,11 +408,9 @@ def refresh_manifest(root: Path, state: dict[str, Any], execution_occurred: bool
 
 
 def validate_submission(root: Path, state: dict[str, Any]) -> None:
-    sid = state.get("submission_id")
-    if not sid:
+    if not state.get("submission_id"):
         return
-    target = root / "SUBMISSIONS" / "INBOX" / str(sid)
-    proc = run([sys.executable, "scripts/check_external_submission.py", "--root", str(target.parent)], cwd=root, check=False)
+    proc = run([sys.executable, "scripts/check_external_submission.py", "--root", "SUBMISSIONS/INBOX"], cwd=root, check=False)
     if proc.returncode != 0:
         print(proc.stdout, end="")
         print(proc.stderr, end="", file=sys.stderr)
@@ -387,13 +419,18 @@ def validate_submission(root: Path, state: dict[str, Any]) -> None:
 
 
 def existing_pr_url(state: dict[str, Any]) -> str | None:
-    head = f"{state['login']}:{state['branch']}"
     proc = run([
         "gh", "pr", "list", "--repo", UPSTREAM, "--state", "open",
-        "--head", head, "--json", "url", "--jq", ".[0].url",
+        "--head", state["branch"], "--json", "url", "--jq", ".[0].url",
     ], check=False)
     value = proc.stdout.strip() if proc.returncode == 0 else ""
     return value if PR_URL_RE.fullmatch(value) else None
+
+
+def cleanup_target_worktree(root: Path, state: dict[str, Any]) -> None:
+    workspace = state.get("target_workspace")
+    if workspace:
+        run(["git", "worktree", "remove", "--force", str(workspace)], cwd=root, check=False)
 
 
 def submit(args: argparse.Namespace) -> int:
@@ -408,27 +445,33 @@ def submit(args: argparse.Namespace) -> int:
     current = run(["git", "branch", "--show-current"], cwd=root).stdout.strip()
     if current != state.get("branch"):
         raise FlowError("TASK_BLOCKED", f"current branch {current!r} does not match started work branch {state.get('branch')!r}")
+
     refresh_manifest(root, state, args.execution_occurred)
     validate_submission(root, state)
     run(["git", "add", "-A"], cwd=root)
     staged = run(["git", "diff", "--cached", "--quiet"], cwd=root, check=False)
     if staged.returncode == 0:
         raise FlowError("TASK_BLOCKED", "no contribution changes to submit")
-    if staged.returncode not in (0, 1):
+    if staged.returncode != 1:
         raise FlowError("TASK_BLOCKED", "could not inspect staged changes")
+
     message = args.message or f"external: contribute for issue #{state['issue']}"
     run(["git", "commit", "-m", message], cwd=root)
     push = run(["git", "push", "-u", "fork", f"HEAD:refs/heads/{state['branch']}"], cwd=root, check=False)
     if push.returncode != 0:
         raise FlowError("PUSH_FAILED", (push.stderr or push.stdout).strip())
+
     existing = existing_pr_url(state)
     if existing:
+        cleanup_target_worktree(root, state)
         print(existing)
         return 0
+
     title = args.title or f"[EXTERNAL][#{state['issue']}] {state['issue_title']}"
     body = (
         f"External contribution for #{state['issue']}.\n\n"
-        f"Target captured at start: `{state['target_ref']}` @ `{state['target_commit']}`.\n\n"
+        f"Inspected target: `{state['target_ref']}` @ `{state['target_commit']}`.\n\n"
+        f"Delivery base captured at start: `{state['delivery_base']}` @ `{state['delivery_commit']}`.\n\n"
         "Evidence boundaries:\n\n"
         "```text\n"
         "PR OPEN != CHANGE ACCEPTED\n"
@@ -439,17 +482,20 @@ def submit(args: argparse.Namespace) -> int:
     proc = run([
         "gh", "pr", "create", "--repo", UPSTREAM,
         "--head", f"{state['login']}:{state['branch']}",
-        "--base", state["target_ref"],
+        "--base", state["delivery_base"],
         "--title", title, "--body", body,
     ], check=False)
     if proc.returncode != 0:
         raise FlowError("PR_CREATION_FAILED", (proc.stderr or proc.stdout).strip())
-    candidates = [line.strip() for line in proc.stdout.splitlines() if line.strip()]
-    url = next((line for line in reversed(candidates) if PR_URL_RE.fullmatch(line)), "")
+
+    lines = [line.strip() for line in proc.stdout.splitlines() if line.strip()]
+    url = next((line for line in reversed(lines) if PR_URL_RE.fullmatch(line)), "")
     if not url:
         url = existing_pr_url(state) or ""
     if not PR_URL_RE.fullmatch(url):
         raise FlowError("PR_CREATION_FAILED", "GitHub command completed but no verifiable upstream PR URL was returned")
+
+    cleanup_target_worktree(root, state)
     print(url)
     return 0
 
@@ -469,16 +515,19 @@ def doctor(_: argparse.Namespace) -> int:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="AHP zero-write external contributor helper")
     sub = parser.add_subparsers(dest="command", required=True)
-    p_start = sub.add_parser("start", help="discover work, fork if needed, and create the local work branch")
+
+    p_start = sub.add_parser("start", help="discover work, fork if needed, and create a local work branch")
     p_start.add_argument("--issue", type=int)
-    p_start.add_argument("--base", help="override target base/ref only when the task contract requires it")
+    p_start.add_argument("--target-ref", "--base", dest="target_ref", help="override the Issue-declared inspection target")
     p_start.add_argument("--force-external", action="store_true", help="use fork/PR mode even if upstream push permission exists")
     p_start.set_defaults(func=start)
-    p_submit = sub.add_parser("submit", help="validate, push to fork, and open upstream Pull Request")
+
+    p_submit = sub.add_parser("submit", help="validate, push only to fork, and open an upstream Pull Request")
     p_submit.add_argument("--execution-occurred", action="store_true")
     p_submit.add_argument("--message")
     p_submit.add_argument("--title")
     p_submit.set_defaults(func=submit)
+
     p_doctor = sub.add_parser("doctor", help="show local/auth/permission capability state")
     p_doctor.set_defaults(func=doctor)
     return parser
