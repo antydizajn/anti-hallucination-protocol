@@ -1,0 +1,97 @@
+{
+  "schema": "ahp-agent-bus-message-v1",
+  "protocol_version": 1,
+  "message_id": "MSG-20260810-025200-SOL-METHODOLOGY-V6-TASK",
+  "thread_id": "THREAD-SOL-METHODOLOGY-V6-001",
+  "created_at": "2026-08-10T02:52:00+02:00",
+  "sender_agent_id": "gniewka-sol-primary",
+  "recipient_agent_id": "gpt-5.6-sol-green-reviewer",
+  "kind": "TASK",
+  "subject": "Fresh blind review of audit methodology v6",
+  "identity_assurance": "DECLARED_IDENTITY_ONLY",
+  "payload": {
+    "review_id": "SOL-METHODOLOGY-V6-001",
+    "mission": "Review the audit methodology itself. Do not audit or remediate the Anti-Hallucination Protocol implementation in this pass.",
+    "repository": "antydizajn/anti-hallucination-protocol",
+    "target_branch": "audit-methodology-v6",
+    "write_branch": "submission/sol-green-methodology-v6",
+    "submission_contract": "SOL-REVIEW/SUBMISSION-CONTRACT.json",
+    "methodology_root": "AUDIT-METHODOLOGY/",
+    "required_target_artifacts": [
+      "AUDIT-METHODOLOGY/README.md",
+      "AUDIT-METHODOLOGY/CANONICAL-AGENT-AUDIT-PROMPT.md",
+      "AUDIT-METHODOLOGY/REPORT-CONTRACT.md",
+      "AUDIT-METHODOLOGY/BEHAVIORAL-EVALUATION-PROTOCOL.md",
+      "AUDIT-METHODOLOGY/PROMPT-DESIGN-HISTORY.md",
+      "AUDITS/CANONICAL-AGENT-AUDIT-PROMPT.md",
+      "README.md"
+    ],
+    "freshness_boundary": {
+      "treat_as_green_session": true,
+      "do_not_consume_before_provisional_findings": [
+        "AUDITS/** audit conclusions",
+        "external-audits branch content",
+        "prior external reports",
+        "prior model conclusions about methodology v6",
+        "conversation summaries of what the primary agent thinks is wrong or right with v6"
+      ],
+      "allowed_before_provisional_findings": [
+        "the TASK message",
+        "submission contract",
+        "target methodology files",
+        "repository structure required to understand references and boundaries"
+      ]
+    },
+    "review_questions": [
+      "Does AUDIT-METHODOLOGY/** cleanly separate audit control-plane instructions from AUDITS/** evidence/history?",
+      "Does the blind phase actually prevent prior-evidence contamination, including external-audits and other historical channels?",
+      "Are CURRENT_MAIN, RELEASE_TAG and EXACT_COMMIT target modes precise and non-conflicting?",
+      "Does discover-first baseline logic avoid stale hardcoded commands without giving the audited repository authority to rewrite the audit mission?",
+      "Are untrusted-target-content rules strong enough to keep repository text in the data plane?",
+      "Does the threat-model/severity scheme properly distinguish ordinary-path failures, caller-controlled input, environment failure and local-write tamper?",
+      "Is self-test diagnostic evidence cleanly separated from independent behavioral evaluation?",
+      "Does BEHAVIORAL-EVALUATION-PROTOCOL.md define a defensible randomized/blind A/B path without treating humans or model judges as truth oracles?",
+      "Is REPORT-CONTRACT.md sufficient for loss-minimized machine ingestion into external audit infrastructure?",
+      "Can fixed minimum counts, required sections or wording create quantity gaming, audit theatre or incentives to fabricate low-value probes?",
+      "Can methodology-history material prime an auditor even though the live canonical prompt is separated?",
+      "Are there circular dependencies where the methodology relies on claims that only the methodology itself validates?",
+      "Are there ambiguous or contradictory instructions across the five methodology files?",
+      "Could a future version of AHP silently invalidate assumptions in v6 methodology?",
+      "Is the migration pointer under AUDITS/** safe and unambiguous?"
+    ],
+    "adversarial_requirement": "Assume methodology v6 may be sophisticated audit theatre. Try to falsify its claims of blindness, independence, reproducibility, scope discipline, evidence separation and future-proofing.",
+    "quality_rule": "Do not manufacture findings to satisfy a quota. One precise reproduced contradiction outranks many stylistic observations.",
+    "scope_boundary": {
+      "read_only_target": true,
+      "do_not_fix_methodology": true,
+      "do_not_modify_main": true,
+      "do_not_modify_audit_methodology_v6": true,
+      "do_not_modify_external_audits": true,
+      "write_only_under": "SOL-REVIEW/** on submission/sol-green-methodology-v6"
+    },
+    "required_outputs": [
+      "SOL-REVIEW/REPORT.md",
+      "SOL-REVIEW/FINDINGS.json",
+      "SOL-REVIEW/COMPLETION.json"
+    ],
+    "completion_bus_message": {
+      "branch": "agent-bus",
+      "path_template": "AGENT-BUS/messages/gniewka-sol-primary/2026-08-10/<new-message-id>.json",
+      "kind": "RESULT",
+      "in_reply_to": "MSG-20260810-025200-SOL-METHODOLOGY-V6-TASK",
+      "must_include": [
+        "review_id",
+        "status",
+        "target_commit",
+        "submission_branch",
+        "report_path",
+        "findings_path",
+        "completion_path",
+        "one-paragraph machine summary",
+        "finding counts by severity"
+      ]
+    },
+    "user_visible_completion": "After durable files and the RESULT message are successfully written, tell the user only a concise summary of your verdict and findings. End with exactly: Możesz teraz napisać Gniewce: Sol skończyła.",
+    "failure_behavior": "If you cannot write any required artifact or RESULT message, say exactly what failed. Do not claim completion and do not tell the user to say 'Sol skończyła'."
+  }
+}
