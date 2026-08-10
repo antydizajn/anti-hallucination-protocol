@@ -2,36 +2,137 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "AHP Behavioral Benchmark Run Manifest",
   "type": "object",
+  "additionalProperties": false,
   "required": [
+    "schema_version",
     "run_id",
+    "battery",
+    "repetition",
     "condition",
+    "condition_order_position",
+    "disposition",
+    "started_at",
+    "ended_at",
+    "benchmark_repo_commit",
     "hermes",
+    "model",
     "ahp",
     "environment",
-    "timestamp"
+    "fixtures",
+    "artifacts"
   ],
   "properties": {
-    "run_id": {"type": "string"},
+    "schema_version": {"const": "0.2"},
+    "run_id": {"type": "string", "pattern": "^INT-[0-9]{8}-[0-9]{3}-[ABC]$"},
+    "battery": {"enum": ["QUICK-5", "DEEP-60-TIMED-CORE", "DEEP-60-POOL"]},
+    "repetition": {"type": "integer", "minimum": 1},
     "condition": {"enum": ["CONTROL", "LEGACY", "CURRENT"]},
+    "condition_order_position": {"type": "integer", "minimum": 1, "maximum": 3},
+    "disposition": {"enum": ["COMPLETE", "INVALID", "CONTAMINATED", "ABORTED"]},
+    "invalidation_reasons": {"type": "array", "items": {"type": "string"}, "default": []},
+    "started_at": {"type": "string", "format": "date-time"},
+    "ended_at": {"type": "string", "format": "date-time"},
+    "duration_seconds": {"type": "number", "minimum": 0},
+    "benchmark_repo_commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
     "hermes": {
       "type": "object",
-      "required": ["commit", "version"],
+      "additionalProperties": false,
+      "required": ["version", "source_commit", "profile"],
       "properties": {
-        "commit": {"type": "string"},
-        "version": {"type": "string"}
+        "version": {"type": "string", "minLength": 1},
+        "source_commit": {"type": "string", "minLength": 1},
+        "profile": {"type": "string", "minLength": 1},
+        "config_sha256": {"type": ["string", "null"]},
+        "env_presence_recorded": {"type": "boolean"}
+      }
+    },
+    "model": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provider", "model_id"],
+      "properties": {
+        "provider": {"type": "string", "minLength": 1},
+        "model_id": {"type": "string", "minLength": 1},
+        "reasoning": {"type": ["string", "null"]},
+        "sampling": {"type": "object"}
       }
     },
     "ahp": {
       "type": "object",
-      "required": ["loaded", "ref"],
+      "additionalProperties": false,
+      "required": [
+        "expected_state",
+        "source_ref",
+        "source_commit",
+        "source_skill_blob",
+        "installed",
+        "installed_skill_blob",
+        "byte_identity_verified",
+        "discoverable",
+        "preload_requested",
+        "runtime_load_evidence"
+      ],
       "properties": {
-        "loaded": {"type": "boolean"},
-        "ref": {"type": "string"}
+        "expected_state": {"enum": ["ABSENT", "LEGACY", "CURRENT"]},
+        "source_ref": {"type": ["string", "null"]},
+        "source_commit": {"type": ["string", "null"]},
+        "source_skill_blob": {"type": ["string", "null"]},
+        "installed": {"type": "boolean"},
+        "installed_skill_blob": {"type": ["string", "null"]},
+        "byte_identity_verified": {"type": "boolean"},
+        "discoverable": {"type": "boolean"},
+        "preload_requested": {"type": "boolean"},
+        "runtime_load_evidence": {"enum": ["OBSERVED", "INFERRED", "UNKNOWN", "NOT_APPLICABLE"]},
+        "runtime_load_evidence_detail": {"type": ["string", "null"]}
       }
     },
     "environment": {
-      "type": "object"
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["os", "cwd", "context_files_present", "external_memory", "tools", "plugins_mcp_hooks"],
+      "properties": {
+        "os": {"type": "string"},
+        "cwd": {"type": "string"},
+        "context_files_present": {"type": "array", "items": {"type": "string"}},
+        "external_memory": {"enum": ["OFF", "ON", "UNKNOWN"]},
+        "tools": {"type": "array", "items": {"type": "string"}},
+        "plugins_mcp_hooks": {"type": "object"}
+      }
     },
-    "timestamp": {"type": "string"}
+    "fixtures": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["generator", "tree_sha256"],
+      "properties": {
+        "generator": {"type": "string"},
+        "generator_sha256": {"type": ["string", "null"]},
+        "tree_sha256": {"type": "string"},
+        "position_variant": {"type": ["string", "null"]}
+      }
+    },
+    "artifacts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["session_id", "transcript", "trace", "case_results"],
+      "properties": {
+        "session_id": {"type": ["string", "null"]},
+        "transcript": {"$ref": "#/$defs/artifact"},
+        "trace": {"$ref": "#/$defs/artifact"},
+        "case_results": {"$ref": "#/$defs/artifact"},
+        "usage": {"$ref": "#/$defs/artifact"}
+      }
+    },
+    "contamination_flags": {"type": "array", "items": {"type": "string"}}
+  },
+  "$defs": {
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": {"type": ["string", "null"]},
+        "sha256": {"type": ["string", "null"]}
+      }
+    }
   }
 }
