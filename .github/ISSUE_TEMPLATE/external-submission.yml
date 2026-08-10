@@ -1,0 +1,119 @@
+name: External audit / test submission
+description: Submit an audit, reproducer, behavioral evaluation, research review, or test case without preparing the JSON intake bundle yourself.
+title: "[External submission] "
+labels: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for testing Anti-Hallucination Protocol.
+
+        This form is a human-friendly intake path. Submission does not mean the project accepts the finding as true. Maintainers may later normalize the material into `SUBMISSIONS/INBOX/**` while preserving provenance and any uncertainty about raw byte identity.
+
+  - type: dropdown
+    id: submission_type
+    attributes:
+      label: Submission type
+      options:
+        - Forensic audit
+        - Behavioral evaluation
+        - Reproducer
+        - Test case
+        - Research review
+        - Document review
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: target_ref
+    attributes:
+      label: Target branch/tag/ref
+      placeholder: main / v5.4.2 / exact commit
+    validations:
+      required: true
+
+  - type: input
+    id: target_commit
+    attributes:
+      label: Exact target commit if known
+      placeholder: SHA or UNKNOWN
+    validations:
+      required: true
+
+  - type: input
+    id: methodology
+    attributes:
+      label: Prompt / methodology used
+      placeholder: name, version, commit, URL, or UNKNOWN
+    validations:
+      required: true
+
+  - type: input
+    id: executor
+    attributes:
+      label: Executor / model / tool
+      placeholder: human, Claude Opus 5, GPT-5.6-Sol, Hermes Agent, etc.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: execution
+    attributes:
+      label: Did executable testing occur?
+      options:
+        - "Yes"
+        - "No"
+        - "Unknown"
+    validations:
+      required: true
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Executive summary
+      description: State what you believe you found. Separate observed/reproduced behavior from interpretation where possible.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproducer
+    attributes:
+      label: Reproducer / evidence
+      description: Include exact commands, inputs, observed outputs, logs, or links. Maintainers will not automatically execute submitted code.
+    validations:
+      required: false
+
+  - type: textarea
+    id: findings
+    attributes:
+      label: Findings
+      description: Include IDs/severity/confidence if you used them. Severity is the submitter's claim until adjudicated.
+    validations:
+      required: false
+
+  - type: textarea
+    id: attachments
+    attributes:
+      label: Artifact links / hashes
+      description: Provide report links, attachments, SHA-256 values, or explain what raw evidence is unavailable.
+    validations:
+      required: false
+
+  - type: textarea
+    id: correlation
+    attributes:
+      label: Correlation / independence notes
+      description: Shared prompt, same operator, same source set, model family, discussion with other reviewers, or other shared failure domains.
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: acknowledgement
+    attributes:
+      label: Acknowledgements
+      options:
+        - label: I understand that submission does not mean the project accepts the finding as true or reproduced.
+          required: true
+        - label: I understand that submitted executable material will not be automatically run during intake.
+          required: true
