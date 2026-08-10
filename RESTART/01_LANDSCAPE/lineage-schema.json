@@ -1,0 +1,126 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/antydizajn/anti-hallucination-protocol/RESTART/01_LANDSCAPE/lineage-schema.json",
+  "title": "AHP Benchmark Lineage Record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "benchmark_id",
+    "lineage_group",
+    "upstream_sources",
+    "generation_pipeline",
+    "grader_lineage",
+    "known_relations",
+    "independence_claim"
+  ],
+  "properties": {
+    "benchmark_id": {"type": "string", "minLength": 1},
+    "lineage_group": {"type": "string", "minLength": 1},
+    "benchmark_version": {"type": ["string", "null"]},
+    "upstream_sources": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["source_id", "relation"],
+        "properties": {
+          "source_id": {"type": "string"},
+          "source_type": {"type": ["string", "null"]},
+          "relation": {
+            "enum": [
+              "DIRECT_COPY",
+              "SUBSET",
+              "FILTERED_SUBSET",
+              "TRANSFORMED",
+              "PARAPHRASED",
+              "SYNTHETIC_FROM",
+              "REFERENCE_CORPUS",
+              "ANSWER_SOURCE",
+              "UNKNOWN"
+            ]
+          },
+          "evidence": {"type": "array", "items": {"type": "string"}}
+        }
+      }
+    },
+    "generation_pipeline": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode"],
+      "properties": {
+        "mode": {"enum": ["HUMAN", "MODEL_GENERATED", "HYBRID", "PROGRAMMATIC", "UNKNOWN"]},
+        "generator_model": {"type": ["string", "null"]},
+        "generator_version": {"type": ["string", "null"]},
+        "generation_prompt_public": {"type": ["boolean", "null"]},
+        "generation_prompt_hash": {"type": ["string", "null"]},
+        "generation_code_revision": {"type": ["string", "null"]},
+        "generation_date": {"type": ["string", "null"]},
+        "selection_process": {"type": ["string", "null"]}
+      }
+    },
+    "grader_lineage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["grader_type"],
+      "properties": {
+        "grader_type": {"enum": ["DETERMINISTIC", "RULE_BASED", "HUMAN", "LLM_JUDGE", "HYBRID", "UNKNOWN"]},
+        "grader_id": {"type": ["string", "null"]},
+        "grader_version": {"type": ["string", "null"]},
+        "shared_with_benchmarks": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "known_relations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["other_benchmark_id", "relation_type", "evidence_strength"],
+        "properties": {
+          "other_benchmark_id": {"type": "string"},
+          "relation_type": {
+            "enum": [
+              "SHARED_UPSTREAM_DATA",
+              "SHARED_ITEMS",
+              "NEAR_DUPLICATES",
+              "SHARED_REFERENCE_CORPUS",
+              "SHARED_GENERATOR",
+              "SHARED_GENERATION_PROMPT",
+              "SHARED_GRADER",
+              "SHARED_AUTHORS_OR_MAINTAINERS",
+              "SHARED_TRANSFORMATION_RECIPE",
+              "DERIVED_BENCHMARK",
+              "UNKNOWN"
+            ]
+          },
+          "evidence_strength": {"enum": ["CONFIRMED", "STRONG_SIGNAL", "WEAK_SIGNAL", "UNKNOWN"]},
+          "evidence": {"type": "array", "items": {"type": "string"}}
+        }
+      }
+    },
+    "overlap_fingerprints": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "exact_item_hash_manifest": {"type": ["string", "null"]},
+        "normalized_item_hash_manifest": {"type": ["string", "null"]},
+        "ngram_minhash_manifest": {"type": ["string", "null"]},
+        "semantic_neighbor_manifest": {"type": ["string", "null"]},
+        "source_url_manifest": {"type": ["string", "null"]},
+        "answer_overlap_manifest": {"type": ["string", "null"]}
+      }
+    },
+    "independence_claim": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "scope", "basis"],
+      "properties": {
+        "status": {"enum": ["MATERIALLY_INDEPENDENT", "PARTIALLY_INDEPENDENT", "NOT_INDEPENDENT", "UNKNOWN"]},
+        "scope": {"type": "string"},
+        "basis": {"type": "array", "items": {"type": "string"}},
+        "limitations": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "reviewer": {"type": ["string", "null"]},
+    "review_date": {"type": ["string", "null"]}
+  }
+}
