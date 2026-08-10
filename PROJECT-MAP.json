@@ -1,22 +1,25 @@
 {
-  "schema": "ahp-project-map-v1",
+  "schema": "ahp-project-map-v2",
   "repository": "antydizajn/anti-hallucination-protocol",
-  "generated_at": "2026-08-10T03:47:00+02:00",
+  "generated_at": "2026-08-10T04:20:00+02:00",
   "warning": "Branch existence and role can change. Resolve refs before relying on mutable state.",
   "branches": [
     {"name":"main","role":"CANONICAL","purpose":"Current project code/docs, autonomous bootstrap and release lineage"},
     {"name":"audit-methodology-v6","role":"CANDIDATE","purpose":"Next audit methodology/control plane"},
     {"name":"external-audits","role":"EVIDENCE_ARCHIVE","purpose":"External audit submissions and adjudication records"},
-    {"name":"agent-bus","role":"COMMUNICATION","purpose":"JSON-only agent-to-agent messages"},
+    {"name":"agent-bus","role":"COMMUNICATION","purpose":"Trusted JSON-only agent-to-agent messages"},
     {"name":"submission/sol-green-methodology-v6","role":"SUBMISSION","purpose":"Isolated external reviewer output"},
     {"name":"ahp-usage-test","role":"EXPERIMENTAL","purpose":"Historical/experimental real-usage material"},
     {"name":"v5.4.2-user-pressure-invariant","role":"HISTORICAL","purpose":"Historical feature/release work"},
     {"name":"backup/pre-history-migration-2026-08-08","role":"BACKUP","purpose":"Migration safety backup"},
     {"name":"project-infrastructure-v1","role":"HISTORICAL","purpose":"Merged development branch for infrastructure now present on main"},
-    {"name":"autonomous-control-plane-v1","role":"HISTORICAL","purpose":"Merged development branch for one-link autonomous work discovery and routing now present on main"}
+    {"name":"autonomous-control-plane-v1","role":"HISTORICAL","purpose":"Merged one-link autonomous control plane now present on main"},
+    {"name":"external-contributor-v1","role":"CANDIDATE","purpose":"Zero-upstream-write fork/PR contribution path until merged"}
   ],
   "entrypoints": {
-    "repo_url_only": ["AGENTS.md", "AGENT-BOOTSTRAP.json", "AUTONOMOUS-AGENT.md"],
+    "repo_url_only": ["AGENTS.md", "AGENT-BOOTSTRAP.json"],
+    "external_no_write": ["EXTERNAL-CONTRIBUTOR.md", "CONTRIBUTING.md", "scripts/external_contributor.py"],
+    "trusted_upstream_writer": "AUTONOMOUS-AGENT.md",
     "orientation": ["AGENTS.md", "README.md", "PROJECT-MAP.json", "PROJECT-HANDOFF.md"],
     "live_work_ledger": "GitHub Issues with [AGENT-READY] marker",
     "active_policy": "SKILL.md",
@@ -30,7 +33,22 @@
     "roadmap": "TODO.md",
     "continuation": "PROJECT-HANDOFF.md"
   },
+  "permission_modes": {
+    "TRUSTED_UPSTREAM_WRITER": "proven upstream push permission",
+    "EXTERNAL_CONTRIBUTOR": "no upstream push or permission unknown",
+    "unknown_defaults_to": "EXTERNAL_CONTRIBUTOR"
+  },
+  "external_delivery": {
+    "path": "fork -> contributor branch -> Pull Request",
+    "helper_start": "python3 scripts/external_contributor.py start",
+    "helper_submit": "python3 scripts/external_contributor.py submit",
+    "upstream_write_required": false,
+    "agent_bus_write_required": false
+  },
   "status_boundaries": [
+    "PUBLIC_REPO != WRITE_ACCESS",
+    "FORK != UPSTREAM_MODIFICATION",
+    "PR_OPEN != CHANGE_ACCEPTED",
     "RECEIVED != VERIFIED",
     "VERIFIED_SIGNATURE != TRUE_CONTENT",
     "STRUCTURALLY_VALID_SUBMISSION != ACCEPTED_FINDING",
