@@ -1,7 +1,7 @@
 {
   "schema": "ahp-project-map-v1",
   "repository": "antydizajn/anti-hallucination-protocol",
-  "generated_at": "2026-08-10T03:17:00+02:00",
+  "generated_at": "2026-08-10T03:37:00+02:00",
   "warning": "Branch existence and role can change. Resolve refs before relying on mutable state.",
   "branches": [
     {"name":"main","role":"CANONICAL","purpose":"Current project code/docs and release lineage"},
@@ -12,10 +12,13 @@
     {"name":"ahp-usage-test","role":"EXPERIMENTAL","purpose":"Historical/experimental real-usage material"},
     {"name":"v5.4.2-user-pressure-invariant","role":"HISTORICAL","purpose":"Historical feature/release work"},
     {"name":"backup/pre-history-migration-2026-08-08","role":"BACKUP","purpose":"Migration safety backup"},
-    {"name":"project-infrastructure-v1","role":"HISTORICAL","purpose":"Merged development branch for infrastructure now present on main"}
+    {"name":"project-infrastructure-v1","role":"HISTORICAL","purpose":"Merged development branch for infrastructure now present on main"},
+    {"name":"autonomous-control-plane-v1","role":"CANDIDATE","purpose":"One-link autonomous work discovery, routing and handoff until merged"}
   ],
   "entrypoints": {
-    "orientation": ["AGENTS.md", "README.md"],
+    "repo_url_only": ["AGENTS.md", "AGENT-BOOTSTRAP.json", "AUTONOMOUS-AGENT.md"],
+    "orientation": ["AGENTS.md", "README.md", "PROJECT-MAP.json", "PROJECT-HANDOFF.md"],
+    "live_work_ledger": "GitHub Issues with [AGENT-READY] marker",
     "active_policy": "SKILL.md",
     "canonical_audit_history": "AUDITS/",
     "audit_methodology_candidate": "AUDIT-METHODOLOGY/ on audit-methodology-v6",
@@ -23,6 +26,7 @@
     "agent_bus": "AGENT-BUS/ on agent-bus",
     "agent_identity": "AGENT-IDENTITY/",
     "external_submission_intake": "SUBMISSIONS/",
+    "custom_agent_profiles": ".github/agents/",
     "roadmap": "TODO.md",
     "continuation": "PROJECT-HANDOFF.md"
   },
@@ -30,9 +34,12 @@
     "RECEIVED != VERIFIED",
     "VERIFIED_SIGNATURE != TRUE_CONTENT",
     "STRUCTURALLY_VALID_SUBMISSION != ACCEPTED_FINDING",
+    "ISSUE_OPEN != FINDING_TRUE",
+    "AGENT_ASSIGNED != AGENT_CORRECT",
     "AUDITOR_REPRODUCED != PROJECT_REPRODUCED",
-    "PATCH_PRESENT != BUG_CLOSED",
-    "GREEN_TESTS != MODEL_OBEDIENCE",
+    "REPRODUCED != FIXED",
+    "PATCHED != RELEASED",
+    "CI_PASS != BEHAVIORAL_EFFECTIVENESS",
     "INSTALLED != LOADED",
     "LOADED != OBEYED",
     "MULTIPLE_AGENTS != INDEPENDENT_EVIDENCE"
