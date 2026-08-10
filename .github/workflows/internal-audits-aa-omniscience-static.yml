@@ -3,7 +3,8 @@ name: Internal audits AA Omniscience static integrity
 on:
   pull_request:
     paths:
-      - 'INTERNAL-AUDITS/**'
+      - 'INTERNAL-AUDITS/EXTERNAL-BATTERIES/AA-OMNISCIENCE-600/**'
+      - 'INTERNAL-AUDITS/INDEX.md'
       - '.github/workflows/internal-audits-aa-omniscience-static.yml'
 
 permissions:
@@ -17,11 +18,17 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: Install validator dependencies
-        run: python -m pip install pyyaml
-      - name: Validate benchmark static integrity
-        run: python INTERNAL-AUDITS/RUNNERS/validate_benchmark.py
-      - name: Validate AA source verifier syntax
-        run: python -m py_compile INTERNAL-AUDITS/EXTERNAL-BATTERIES/AA-OMNISCIENCE-600/verify_source.py
-      - name: Validate AA arm runner syntax
-        run: python -m py_compile INTERNAL-AUDITS/EXTERNAL-BATTERIES/AA-OMNISCIENCE-600/run_aa_arm.py
+      - name: Compile AA Python files
+        run: |
+          python -m py_compile \
+            INTERNAL-AUDITS/EXTERNAL-BATTERIES/AA-OMNISCIENCE-600/verify_source.py \
+            INTERNAL-AUDITS/EXTERNAL-BATTERIES/AA-OMNISCIENCE-600/prepare_questions.py \
+            INTERNAL-AUDITS/EXTERNAL-BATTERIES/AA-OMNISCIENCE-600/run_aa_arm.py \
+            INTERNAL-AUDITS/EXTERNAL-BATTERIES/AA-OMNISCIENCE-600/score_aa.py \
+            INTERNAL-AUDITS/EXTERNAL-BATTERIES/AA-OMNISCIENCE-600/validate_static.py
+      - name: Validate AA static contracts
+        run: python INTERNAL-AUDITS/EXTERNAL-BATTERIES/AA-OMNISCIENCE-600/validate_static.py
+      - name: State evidence boundary
+        run: |
+          echo 'STATIC INTEGRITY ONLY'
+          echo 'No dataset download, Hermes/model execution, semantic grading, or AHP effectiveness claim is performed by this workflow.'
