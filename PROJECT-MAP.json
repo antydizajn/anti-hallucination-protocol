@@ -1,7 +1,7 @@
 {
   "schema": "ahp-project-map-v1",
   "repository": "antydizajn/anti-hallucination-protocol",
-  "generated_at": "2026-08-10T03:10:00+02:00",
+  "generated_at": "2026-08-10T03:17:00+02:00",
   "warning": "Branch existence and role can change. Resolve refs before relying on mutable state.",
   "branches": [
     {"name":"main","role":"CANONICAL","purpose":"Current project code/docs and release lineage"},
@@ -12,7 +12,7 @@
     {"name":"ahp-usage-test","role":"EXPERIMENTAL","purpose":"Historical/experimental real-usage material"},
     {"name":"v5.4.2-user-pressure-invariant","role":"HISTORICAL","purpose":"Historical feature/release work"},
     {"name":"backup/pre-history-migration-2026-08-08","role":"BACKUP","purpose":"Migration safety backup"},
-    {"name":"project-infrastructure-v1","role":"CANDIDATE","purpose":"Project map, agent identity, submission intake infrastructure"}
+    {"name":"project-infrastructure-v1","role":"HISTORICAL","purpose":"Merged development branch for infrastructure now present on main"}
   ],
   "entrypoints": {
     "orientation": ["AGENTS.md", "README.md"],
