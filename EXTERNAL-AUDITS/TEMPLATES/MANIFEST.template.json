@@ -1,0 +1,59 @@
+{
+  "schema_version": "1.0",
+  "audit_id": "EXT-YYYYMMDD-NNN",
+  "artifact_state": "UNKNOWN",
+  "submitted_filename": "UNKNOWN",
+  "receipt_date": "YYYY-MM-DD",
+  "artifact": {
+    "size_bytes": null,
+    "sha256": "UNKNOWN",
+    "archived_path": "UNKNOWN",
+    "normalization_notes": "UNKNOWN"
+  },
+  "submitter": {
+    "type": "UNKNOWN",
+    "identity": "UNKNOWN",
+    "relation": "UNKNOWN"
+  },
+  "executor": {
+    "type": "UNKNOWN",
+    "agent": "UNKNOWN",
+    "model": "UNKNOWN",
+    "provider_runtime": "UNKNOWN",
+    "execution_capable": "UNKNOWN"
+  },
+  "target": {
+    "repository": "https://github.com/antydizajn/anti-hallucination-protocol",
+    "branch_or_ref": "UNKNOWN",
+    "commit": "UNKNOWN",
+    "version": "UNKNOWN",
+    "clean_checkout_claimed": "UNKNOWN"
+  },
+  "methodology": {
+    "prompt": "UNKNOWN",
+    "prompt_hash": "UNKNOWN",
+    "blind_first": "UNKNOWN",
+    "historical_audits_read_after_blind_phase": "UNKNOWN",
+    "network_access": "UNKNOWN",
+    "tool_access": "UNKNOWN",
+    "canonical_checkout_modified": "UNKNOWN"
+  },
+  "report": {
+    "verdict": "UNKNOWN",
+    "install_recommendation": "UNKNOWN",
+    "confidence": "UNKNOWN",
+    "reported_findings_count": null
+  },
+  "correlation": {
+    "shared_prompt": [],
+    "shared_operator": [],
+    "shared_model_family": [],
+    "shared_provider_runtime": [],
+    "shared_reproducer": [],
+    "notes": "UNKNOWN"
+  },
+  "project_state": {
+    "intake_status": "RAW_SUBMISSION_RECEIVED",
+    "adjudication_status": "NOT_STARTED"
+  }
+}
