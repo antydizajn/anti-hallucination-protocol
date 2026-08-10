@@ -1,0 +1,87 @@
+{
+  "schema": "ahp-methodology-review-findings-v1",
+  "issue": 11,
+  "auditor": "gpt-5.6-sol",
+  "target": {
+    "repository": "antydizajn/anti-hallucination-protocol",
+    "ref": "audit-methodology-v6",
+    "resolved_commit": "efecb86326a5935d0996cf4f3f1ba21b8106890d",
+    "primary_namespace": "AUDIT-METHODOLOGY/**",
+    "prompt_blob": "190345443b4f2599a4a9e76e5d07f64e6a6b4ed1"
+  },
+  "blind_phase_a": {
+    "completed": true,
+    "ended_before_history_read": true,
+    "provisional_findings_at_end": ["F-001", "F-002"]
+  },
+  "findings": [
+    {
+      "finding_id": "F-001",
+      "title": "Machine-readable report contract is not lossless",
+      "reported_severity": "P1",
+      "confidence": 0.99,
+      "evidence_state": "FILE_VERIFIED",
+      "claim": "REPORT-CONTRACT.md declares claim and mechanism mandatory for every material finding, but the canonical machine-readable JSON finding shape omits both fields.",
+      "mechanism": "A downstream intake following the canonical JSON object cannot preserve the auditor's semantic proposition and causal explanation without reading prose or reconstructing them, contradicting the stated non-reinterpretation/lossless intake purpose.",
+      "impact": "Lossy external-audit ingestion and increased risk of silent reinterpretation during archive or adjudication.",
+      "precondition": "ORDINARY_PATH",
+      "threat_model": "IN_SCOPE",
+      "ordinary_path": true,
+      "local_write_required": false,
+      "attacker_control_required": false,
+      "expected_behavior": "Every mandatory load-bearing finding field is represented in the machine-readable contract or an explicitly lossless equivalent.",
+      "observed_behavior": "claim and mechanism are mandatory in prose but absent from the canonical JSON example.",
+      "evidence": [
+        "AUDIT-METHODOLOGY/REPORT-CONTRACT.md#required-finding-fields",
+        "AUDIT-METHODOLOGY/REPORT-CONTRACT.md#machine-readable-block"
+      ],
+      "proposed_change": "Add claim and mechanism to the canonical JSON shape, publish a matching JSON Schema, and regression-test required-field parity."
+    },
+    {
+      "finding_id": "F-002",
+      "title": "Untrusted target data can become executable authority through baseline discovery",
+      "reported_severity": "P1",
+      "confidence": 0.93,
+      "evidence_state": "FILE_VERIFIED",
+      "claim": "The prompt declares target repository content untrusted data but later authorizes target-shipped tests/checkers and requires baseline commands to be derived from target CI, README and helpers without a universal sandbox/inspection gate.",
+      "mechanism": "A compromised or adversarial target can place executable commands in target-controlled baseline surfaces. A literal auditor can execute them as the discovered baseline, converting target data into action authority. The explicit outside-write inspection warning is scoped only to legacy helpers.",
+      "impact": "Potential arbitrary target-defined code execution, violation of read-only/no-external-side-effect boundaries, and prompt-injection ambiguity.",
+      "precondition": "MALFORMED_EXTERNAL_INPUT",
+      "threat_model": "IN_SCOPE",
+      "ordinary_path": false,
+      "local_write_required": false,
+      "attacker_control_required": true,
+      "expected_behavior": "Every target-derived command is inspected and executed only inside a constrained disposable environment unless the coordinator separately authorizes broader effects.",
+      "observed_behavior": "Target-derived CI/README/helper commands may determine the baseline to run, while universal execution-safety constraints are not specified.",
+      "evidence": [
+        "AUDIT-METHODOLOGY/CANONICAL-AGENT-AUDIT-PROMPT.md#0-control-plane--untrusted-target-boundary",
+        "AUDIT-METHODOLOGY/CANONICAL-AGENT-AUDIT-PROMPT.md#2-safety--mutation-boundary",
+        "AUDIT-METHODOLOGY/CANONICAL-AGENT-AUDIT-PROMPT.md#7-discover-the-baseline-then-run-it"
+      ],
+      "proposed_change": "Add a universal target-derived execution gate covering tests, checkers, package hooks, build steps, liveness scripts and helpers: inspect first, remove credentials, sandbox filesystem, constrain network and external writes, and make clear that README/CI can suggest commands but cannot authorize them."
+    },
+    {
+      "finding_id": "F-003",
+      "title": "Behavioral A/B protocol lacks explicit state isolation or reset",
+      "reported_severity": "P2",
+      "confidence": 0.90,
+      "evidence_state": "FILE_VERIFIED",
+      "claim": "The A/B protocol randomizes conditions and keeps agent/runtime factors constant but does not mandate fresh sessions/processes or reset/isolation of persistent memory, caches, tool state, conversation history or writable fixtures.",
+      "mechanism": "In stateful agents, one condition can alter state consumed by later conditions. Randomization does not eliminate carryover, so treatment leakage can bias the measured AHP effect.",
+      "impact": "Reduced causal validity of behavioral effectiveness claims, including false positive or false negative treatment effects.",
+      "precondition": "ENVIRONMENT_FAILURE",
+      "threat_model": "IN_SCOPE",
+      "ordinary_path": true,
+      "local_write_required": false,
+      "attacker_control_required": false,
+      "expected_behavior": "Each condition begins from an equivalent clean state, or a defined crossover/washout design records and controls residual shared state.",
+      "observed_behavior": "The protocol specifies same agent/runtime, constant factors and randomization but no state-reset/session-isolation requirement.",
+      "evidence": [
+        "AUDIT-METHODOLOGY/BEHAVIORAL-EVALUATION-PROTOCOL.md#experimental-conditions",
+        "AUDIT-METHODOLOGY/BEHAVIORAL-EVALUATION-PROTOCOL.md#unit-of-analysis",
+        "AUDIT-METHODOLOGY/BEHAVIORAL-EVALUATION-PROTOCOL.md#acceptance-criteria"
+      ],
+      "proposed_change": "Require fresh process/session or snapshot/restore between conditions; reset memory, context, caches, tools and writable fixtures; record unavoidable shared state and define crossover/washout handling."
+    }
+  ]
+}
