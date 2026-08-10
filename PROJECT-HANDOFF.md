@@ -67,6 +67,12 @@ PR #13 - zero-write external contributor fork/PR workflow
 PR #14 - zero-write post-merge continuity
 ```
 
+Historical development branch lineage marker:
+
+```text
+external-contributor-v1
+```
+
 Observed merge commits:
 
 ```text
