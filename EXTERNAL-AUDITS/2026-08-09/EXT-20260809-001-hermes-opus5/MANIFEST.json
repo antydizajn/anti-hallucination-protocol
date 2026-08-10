@@ -1,0 +1,59 @@
+{
+  "schema_version": "1.0",
+  "audit_id": "EXT-20260809-001",
+  "artifact_state": "HASH_RECORDED",
+  "submitted_filename": "AHP-AUDIT-2026-08-09-hermes-opus5.md",
+  "receipt_date": "2026-08-10",
+  "artifact": {
+    "size_bytes": 43202,
+    "sha256": "eaee5c00ffe6d53c9d518f57a8aa71522f4b3839b01c7264a9191dea1c0afee8",
+    "archived_path": "NOT_STORED_RAW_YET",
+    "normalization_notes": "Original artifact hash and size recorded from the submitted file. Do not claim RAW_ARCHIVED until exact original bytes are committed and reverified."
+  },
+  "submitter": {
+    "type": "human",
+    "identity": "external collaborator",
+    "relation": "user's colleague"
+  },
+  "executor": {
+    "type": "agent",
+    "agent": "Hermes Agent",
+    "model": "Claude Opus 5",
+    "provider_runtime": "Palantir Foundry proxy",
+    "execution_capable": "yes"
+  },
+  "target": {
+    "repository": "https://github.com/antydizajn/anti-hallucination-protocol",
+    "branch_or_ref": "main",
+    "commit": "c6ee5f1daade5bb39632b879613a27895f7ccf83",
+    "version": "5.4.2",
+    "clean_checkout_claimed": "yes"
+  },
+  "methodology": {
+    "prompt": "AUDITS/CANONICAL-AGENT-AUDIT-PROMPT.md, Iteration 5",
+    "prompt_hash": "UNKNOWN",
+    "blind_first": "claimed yes",
+    "historical_audits_read_after_blind_phase": "claimed yes",
+    "network_access": "yes",
+    "tool_access": "execution-capable",
+    "canonical_checkout_modified": "claimed no"
+  },
+  "report": {
+    "verdict": "STRONG BUT NEEDS FIXES",
+    "install_recommendation": "YES with two caveats",
+    "confidence": "88%",
+    "reported_findings_count": 10
+  },
+  "correlation": {
+    "shared_prompt": ["canonical Iteration 5"],
+    "shared_operator": [],
+    "shared_model_family": ["Claude"],
+    "shared_provider_runtime": ["Palantir Foundry proxy"],
+    "shared_reproducer": [],
+    "notes": "First registered audit in this archive; cross-audit independence has not been established."
+  },
+  "project_state": {
+    "intake_status": "RAW_SUBMISSION_RECEIVED",
+    "adjudication_status": "NOT_STARTED"
+  }
+}
