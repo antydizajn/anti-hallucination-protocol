@@ -3,6 +3,8 @@
 
 Produces deterministic UTF-8 JSON bytes suitable for detached signing.
 Fails closed on floats to avoid cross-runtime representation ambiguity.
+Fails closed on duplicate object keys, which would otherwise let two
+semantically different messages share one canonical byte string.
 """
 from __future__ import annotations
 import argparse
@@ -10,6 +12,19 @@ import json
 import sys
 from pathlib import Path
 from typing import Any
+
+
+def reject_duplicate_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    seen: set[str] = set()
+    for key, _ in pairs:
+        if key in seen:
+            raise ValueError(f"duplicate object key is forbidden in agent messages: {key!r}")
+        seen.add(key)
+    return dict(pairs)
+
+
+def load_message(text: str) -> Any:
+    return json.loads(text, object_pairs_hook=reject_duplicate_keys)
 
 
 def reject_floats(value: Any, path: str = "$") -> None:
@@ -47,7 +62,7 @@ def main() -> int:
     p.add_argument("--output", type=Path)
     args = p.parse_args()
     try:
-        data = json.loads(args.message.read_text(encoding="utf-8"))
+        data = load_message(args.message.read_text(encoding="utf-8"))
         out = canonical_bytes(data)
         if args.output:
             args.output.write_bytes(out)

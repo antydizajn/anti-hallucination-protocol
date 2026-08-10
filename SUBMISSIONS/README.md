@@ -111,6 +111,15 @@ or let `scripts/external_contributor.py submit` run it automatically.
 
 A passing result means only structural validity.
 
+## Artifact size limit
+
+Each declared artifact must be at most 8 MiB (`MAX_ARTIFACT_BYTES` in
+`scripts/check_external_submission.py`). Larger artifacts are rejected instead of
+being read into memory during hashing.
+
+If your evidence genuinely exceeds that, split it or reference an external archive
+in the report and keep the in-repo artifact to the material excerpt.
+
 ## Reproducers and executable files
 
 You may submit reproducer code as an artifact, but generic intake does not execute it.

@@ -24,6 +24,16 @@ ALLOWED_TYPES = {
 ALLOWED_SEVERITIES = {"P0", "P1", "P2", "P3", "UNKNOWN"}
 ID_RE = re.compile(r"^SUB-[A-Za-z0-9._-]+$")
 SHA_RE = re.compile(r"^[0-9a-f]{64}$")
+MAX_ARTIFACT_BYTES = 8 * 1024 * 1024
+HASH_CHUNK_BYTES = 1024 * 1024
+
+
+def sha256_streamed(target: Path) -> str:
+    digest = hashlib.sha256()
+    with target.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(HASH_CHUNK_BYTES), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 def nonempty(value: Any) -> bool:
@@ -102,10 +112,17 @@ def validate_manifest(subdir: Path) -> list[str]:
             if not inside(subdir, target):
                 errors.append(f"{subdir.name}: artifact escapes submission root: {rel_norm}")
                 continue
+            size = target.stat().st_size
+            if size > MAX_ARTIFACT_BYTES:
+                errors.append(
+                    f"{subdir.name}: artifact exceeds {MAX_ARTIFACT_BYTES} bytes "
+                    f"({size}): {rel_norm}"
+                )
+                continue
             if digest == "UNKNOWN":
                 pass
             elif isinstance(digest, str) and SHA_RE.fullmatch(digest):
-                actual = hashlib.sha256(target.read_bytes()).hexdigest()
+                actual = sha256_streamed(target)
                 if actual != digest:
                     errors.append(f"{subdir.name}: SHA-256 mismatch for {rel_norm}")
             else:
