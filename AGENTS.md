@@ -212,7 +212,7 @@ This role map is intentionally semantic. Branch existence and heads are mutable 
 
 | Branch | Role | Primary use |
 |---|---|---|
-| `main` | `CANONICAL` | current project code/docs and release lineage |
+| `main` | `CANONICAL` | current project code/docs, autonomous bootstrap and release lineage |
 | `audit-methodology-v6` | `CANDIDATE` | next audit methodology/control plane |
 | `external-audits` | `EVIDENCE_ARCHIVE` | external audit evidence and adjudication records |
 | `agent-bus` | `COMMUNICATION` | JSON-only agent-to-agent messages |
@@ -221,7 +221,7 @@ This role map is intentionally semantic. Branch existence and heads are mutable 
 | `v5.4.2-user-pressure-invariant` | `HISTORICAL` | historical release-feature branch |
 | `backup/pre-history-migration-2026-08-08` | `BACKUP` | migration safety backup |
 | `project-infrastructure-v1` | `HISTORICAL` | merged infrastructure development branch |
-| `autonomous-control-plane-v1` | `CANDIDATE` | link-only autonomous work routing until merged |
+| `autonomous-control-plane-v1` | `HISTORICAL` | merged development branch for the one-link autonomous control plane now present on `main` |
 
 Machine-readable companion: `PROJECT-MAP.json`.
 
