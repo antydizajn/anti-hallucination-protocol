@@ -1,0 +1,10 @@
+{
+  "schema": "ahp-agent-bus-agent-v1",
+  "agent_id": "gniewka-sol-primary",
+  "display_name": "Gniewka / GPT-5.6 Sol - primary project agent",
+  "role": "project_coordinator_and_adjudicator",
+  "model_declared": "GPT-5.6 Sol",
+  "inbox_path": "AGENT-BUS/messages/gniewka-sol-primary/",
+  "identity_assurance": "DECLARED_IDENTITY_ONLY",
+  "notes": "Protocol identity only. This file does not cryptographically prove model authorship or human non-intervention."
+}
