@@ -6,6 +6,7 @@ on:
       - 'SUBMISSIONS/**'
       - 'scripts/check_external_submission.py'
       - 'tests/test_project_infrastructure.py'
+      - 'tests/test_agent_identity_secret_boundary.py'
       - '.github/workflows/submission-intake.yml'
 
 permissions:
@@ -23,11 +24,14 @@ jobs:
         with:
           python-version: '3.13'
 
+      - name: Install test dependencies
+        run: python3 -m pip install --disable-pip-version-check pytest
+
       - name: Validate external submission structure
         run: python3 scripts/check_external_submission.py --root SUBMISSIONS/INBOX
 
       - name: Run infrastructure regression tests
-        run: python3 -m pytest tests/test_project_infrastructure.py -q
+        run: python3 -m pytest tests/test_project_infrastructure.py tests/test_agent_identity_secret_boundary.py -q
 
       - name: Security boundary
         run: |
