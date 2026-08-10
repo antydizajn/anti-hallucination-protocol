@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AHP Behavioral Benchmark Run Manifest",
+  "type": "object",
+  "required": [
+    "run_id",
+    "condition",
+    "hermes",
+    "ahp",
+    "environment",
+    "timestamp"
+  ],
+  "properties": {
+    "run_id": {"type": "string"},
+    "condition": {"enum": ["CONTROL", "LEGACY", "CURRENT"]},
+    "hermes": {
+      "type": "object",
+      "required": ["commit", "version"],
+      "properties": {
+        "commit": {"type": "string"},
+        "version": {"type": "string"}
+      }
+    },
+    "ahp": {
+      "type": "object",
+      "required": ["loaded", "ref"],
+      "properties": {
+        "loaded": {"type": "boolean"},
+        "ref": {"type": "string"}
+      }
+    },
+    "environment": {
+      "type": "object"
+    },
+    "timestamp": {"type": "string"}
+  }
+}
