@@ -36,8 +36,6 @@ RFC3339_RE = re.compile(
     r"^\d{4}-\d{2}-\d{2}[Tt]\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:[Zz]|[+-]\d{2}:\d{2})$"
 )
 
-# This checker deliberately implements a small JSON Schema subset. Failing on
-# an unknown keyword is safer than silently ignoring a future assertion.
 SUPPORTED_SCHEMA_KEYS = {
     "$schema",
     "$id",
@@ -97,6 +95,12 @@ def validate_schema_definition(schema: Any, path: str = "$schema") -> list[str]:
     items = schema.get("items")
     if items is not None:
         errors.extend(validate_schema_definition(items, f"{path}.items"))
+
+    additional = schema.get("additionalProperties")
+    if isinstance(additional, dict):
+        errors.append(f"{path}.additionalProperties: schema-valued additionalProperties is not implemented")
+    elif additional is not None and not isinstance(additional, bool):
+        errors.append(f"{path}.additionalProperties: must be boolean in the supported schema profile")
 
     return errors
 
@@ -189,7 +193,7 @@ def _parse_rfc3339(value: Any) -> datetime | None:
 def _validate_timestamp(value: Any, label: str, *, reject_future: bool = False) -> list[str]:
     parsed = _parse_rfc3339(value)
     if parsed is None:
-        return [f"{label} must be a strict RFC3339 timestamp with timezone"]
+        return [f"{label} must be a strict RFC3339-profile timestamp with timezone"]
     if reject_future and parsed > datetime.now(timezone.utc) + MAX_CLOCK_SKEW:
         return [f"{label} cannot be materially in the future"]
     return []
@@ -206,7 +210,15 @@ def validate(record: dict[str, Any], schema: dict[str, Any] | None = None) -> li
         return schema_errors
 
     errors: list[str] = []
+    for field in ("claim_id", "claim"):
+        if not _nonempty(record.get(field)):
+            errors.append(f"{field} must be a non-empty non-whitespace string")
+
     evidence = record["evidence"]
+    for index, item in enumerate(evidence):
+        if isinstance(item, dict) and not _nonempty(item.get("source")):
+            errors.append(f"evidence item #{index + 1} source must be a non-empty non-whitespace string")
+
     state = record["state"]
     risk = record["risk_tier"]
     claim_type = record["claim_type"]
@@ -234,8 +246,12 @@ def validate(record: dict[str, Any], schema: dict[str, Any] | None = None) -> li
         errors.append("CONTRADICTED cannot coexist with surviving ENTAILS evidence; use CONFLICT when both sides remain")
     if state == "CONFLICT" and (not entails or not contradictions):
         errors.append("CONFLICT requires both supporting and contradicting evidence")
+    if state == "NOT_FOUND_WITHIN_SCOPE" and not _nonempty(scope):
+        errors.append("NOT_FOUND_WITHIN_SCOPE requires an explicit non-empty scope")
     if state == "NOT_FOUND_WITHIN_SCOPE" and entails:
         errors.append("NOT_FOUND_WITHIN_SCOPE cannot coexist with ENTAILS evidence")
+    if state == "PARTIAL" and not any(e["entailment"] in {"ENTAILS", "PARTIAL"} for e in evidence):
+        errors.append("PARTIAL requires at least one ENTAILS or PARTIAL evidence item")
     if state == "ERROR" and not failed_verifiers:
         errors.append("ERROR state should record at least one FAILED verifier")
 
@@ -253,6 +269,8 @@ def validate(record: dict[str, Any], schema: dict[str, Any] | None = None) -> li
             )
 
         groups: list[str] = []
+        sources: list[str] = []
+        source_identities: list[str] = []
         for item in verified_independent:
             group = item.get("independence_group")
             if not _nonempty(group):
@@ -261,9 +279,23 @@ def validate(record: dict[str, Any], schema: dict[str, Any] | None = None) -> li
                 )
             else:
                 groups.append(group.strip())
+            source = item.get("source")
+            identity = item.get("source_identity")
+            if _nonempty(source):
+                sources.append(source.strip())
+            if _nonempty(identity):
+                source_identities.append(identity.strip())
         if len(groups) != len(set(groups)):
             errors.append(
                 "T3 verified independent supporting evidence cannot reuse the same independence_group"
+            )
+        if len(sources) != len(set(sources)):
+            errors.append(
+                "T3 verified independent supporting evidence cannot reuse the same source under different independence groups"
+            )
+        if len(source_identities) != len(set(source_identities)):
+            errors.append(
+                "T3 verified independent supporting evidence cannot reuse the same source_identity under different independence groups"
             )
 
         if any(e["source_class"] == "unknown" for e in entails):

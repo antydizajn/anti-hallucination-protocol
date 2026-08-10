@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Repository-local integrity checker for Anti-Hallucination Protocol v5.4.
+"""Repository-local integrity checker for Anti-Hallucination Protocol v5.4.2.
 
 Frontmatter acceptance is intentionally based on a real YAML parse, not a
 home-grown approximation. This prevents the integrity checker from certifying
@@ -10,7 +10,7 @@ narrow repository contract. It does not validate research truth, semantic
 entailment, web availability, or Hermes runtime behavior.
 
 A PASS means only that the checked repository structure and metadata contract
-are internally consistent for v5.4.0.
+are internally consistent for v5.4.2.
 """
 
 from __future__ import annotations
@@ -23,10 +23,10 @@ from typing import Any
 
 try:
     import yaml
-except ImportError:  # pragma: no cover - environment failure, not a data case
+except ImportError:  # pragma: no cover
     yaml = None
 
-EXPECTED_VERSION = "5.4.0"
+EXPECTED_VERSION = "5.4.2"
 REQUIRED_FRONTMATTER_KEYS = {
     "name",
     "description",
@@ -60,6 +60,7 @@ REQUIRED_PATHS = [
     "tests/test_evidence_record.py",
     "tests/test_v5_integrity.py",
     "tests/test_liveness.py",
+    "tests/test_v541_regressions.py",
     "tests/adversarial_cases.md",
 ]
 REQUIRED_STATES = [
@@ -89,7 +90,10 @@ ACTIVE_REFERENCES = [
 
 LOCAL_MD_LINK_RE = re.compile(r"\[[^\]]+\]\((?!https?://)([^)#]+)(?:#[^)]+)?\)")
 BACKTICK_REF_RE = re.compile(r"`((?:references|scripts|tests)/[^`]+)`")
-TOP_LEVEL_KEY_RE = re.compile(r"^(?P<key>[A-Za-z_][A-Za-z0-9_-]*):", re.MULTILINE)
+TOP_LEVEL_KEY_RE = re.compile(
+    r"^(?P<quote>[\"']?)(?P<key>[A-Za-z_][A-Za-z0-9_-]*)(?P=quote)\s*:",
+    re.MULTILINE,
+)
 
 
 def split_frontmatter(text: str) -> tuple[str, str, list[str]]:
@@ -128,6 +132,14 @@ def parse_frontmatter(text: str) -> tuple[dict[str, Any], str, list[str]]:
     return data, body, errors
 
 
+def _inside_root(root: Path, target: Path) -> bool:
+    try:
+        target.resolve(strict=True).relative_to(root.resolve())
+        return True
+    except (OSError, ValueError):
+        return False
+
+
 def validate(root: Path) -> list[str]:
     errors: list[str] = []
     skill = root / "SKILL.md"
@@ -138,6 +150,8 @@ def validate(root: Path) -> list[str]:
         text = skill.read_text(encoding="utf-8")
     except (OSError, UnicodeError) as exc:
         return [f"SKILL.md could not be read as UTF-8: {exc}"]
+    if text.startswith("\ufeff"):
+        text = text[1:]
 
     frontmatter, body, frontmatter_errors = parse_frontmatter(text)
     errors.extend(frontmatter_errors)
@@ -169,8 +183,11 @@ def validate(root: Path) -> list[str]:
             errors.append("SKILL.md frontmatter metadata.hermes must be a mapping")
 
     for rel in REQUIRED_PATHS:
-        if not (root / rel).is_file():
+        target = root / rel
+        if not target.is_file():
             errors.append(f"required file missing: {rel}")
+        elif not _inside_root(root, target):
+            errors.append(f"required file escapes skill root or cannot be resolved safely: {rel}")
 
     for state in REQUIRED_STATES:
         if state not in body:
@@ -188,6 +205,8 @@ def validate(root: Path) -> list[str]:
         target = root / rel
         if not target.exists():
             errors.append(f"SKILL.md references missing local path: {rel}")
+        elif not _inside_root(root, target):
+            errors.append(f"SKILL.md references path escaping skill root: {rel}")
 
     return errors
 

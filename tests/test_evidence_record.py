@@ -169,8 +169,8 @@ def test_t3_duplicate_independence_groups_are_rejected():
         rec(
             risk="T3",
             evidence=[
-                ev(source="source-a", independence_group="shared-origin"),
-                ev(source="source-b", independence_group="shared-origin"),
+                ev(source="source-a", source_identity="identity-a", independence_group="shared-origin"),
+                ev(source="source-b", source_identity="identity-b", independence_group="shared-origin"),
             ],
         )
     )
@@ -182,8 +182,8 @@ def test_t3_distinct_declared_groups_pass_structural_contract():
         rec(
             risk="T3",
             evidence=[
-                ev(source="source-a", independence_group="group-a"),
-                ev(source="source-b", independence_group="group-b"),
+                ev(source="source-a", source_identity="identity-a", independence_group="group-a"),
+                ev(source="source-b", source_identity="identity-b", independence_group="group-b"),
             ],
         )
     ) == []

@@ -1,0 +1,54 @@
+{
+  "schema": "ahp-agent-bootstrap-v2",
+  "repository": "antydizajn/anti-hallucination-protocol",
+  "default_entrypoint": "AUTONOMOUS-AGENT.md",
+  "external_entrypoint": "EXTERNAL-CONTRIBUTOR.md",
+  "orientation": [
+    "AGENTS.md",
+    "PROJECT-MAP.json",
+    "README.md",
+    "PROJECT-HANDOFF.md"
+  ],
+  "capability_routing": {
+    "trusted_upstream_writer": "AUTONOMOUS-AGENT.md",
+    "external_contributor": "EXTERNAL-CONTRIBUTOR.md",
+    "unknown_permission_default": "EXTERNAL_CONTRIBUTOR"
+  },
+  "external_helper": {
+    "path": "scripts/external_contributor.py",
+    "start": "python3 scripts/external_contributor.py start",
+    "submit": "python3 scripts/external_contributor.py submit",
+    "delivery": "fork -> contributor branch -> Pull Request"
+  },
+  "live_work_ledger": {
+    "system": "github_issues",
+    "ready_marker": "[AGENT-READY]",
+    "priority_order": ["P0", "P1", "P2", "P3"],
+    "claim_schema": "AHP_WORK_CLAIM_V1",
+    "handoff_schema": "AHP_WORK_HANDOFF_V1",
+    "claim_ttl_minutes": 120
+  },
+  "default_when_only_repo_url_is_given": "DISCOVER_WORK",
+  "no_work_result": "STOP_WITH_NO_ASSIGNED_WORK",
+  "internal_work_branch_template": "agent/<agent-id>/issue-<number>-<slug>",
+  "external_work_branch_template": "external/<github-login>/issue-<number>-<slug>",
+  "roles": {
+    "FORENSIC_AUDIT": ".github/agents/ahp-forensic-auditor.md",
+    "REPRODUCTION": ".github/agents/ahp-reproducer.md",
+    "REMEDIATION": ".github/agents/ahp-remediator.md",
+    "RELEASE_VERIFY": ".github/agents/ahp-release-verifier.md"
+  },
+  "boundaries": [
+    "PUBLIC_REPO != WRITE_ACCESS",
+    "FORK != UPSTREAM_MODIFICATION",
+    "PR_OPEN != CHANGE_ACCEPTED",
+    "ISSUE_OPEN != FINDING_TRUE",
+    "AGENT_ASSIGNED != AGENT_CORRECT",
+    "SIGNED != TRUE",
+    "STRUCTURALLY_VALID_SUBMISSION != ACCEPTED_FINDING",
+    "AUDITOR_REPRODUCED != PROJECT_REPRODUCED",
+    "REPRODUCED != FIXED",
+    "PATCHED != RELEASED",
+    "CI_PASS != BEHAVIORAL_EFFECTIVENESS"
+  ]
+}

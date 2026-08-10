@@ -1,0 +1,17 @@
+{
+  "schema": "ahp-agent-identity-registry-v1",
+  "agents": [
+    {
+      "agent_id": "gniewka-sol-primary",
+      "assurance": "DECLARED_IDENTITY_ONLY",
+      "keys": []
+    },
+    {
+      "agent_id": "gpt-5.6-sol-green-reviewer",
+      "assurance": "DECLARED_IDENTITY_ONLY",
+      "keys": []
+    }
+  ],
+  "allowed_key_states": ["ACTIVE", "RETIRED", "REVOKED"],
+  "note": "No real public key has been provisioned yet. Empty key arrays intentionally prevent false KEY_BOUND_IDENTITY claims."
+}
