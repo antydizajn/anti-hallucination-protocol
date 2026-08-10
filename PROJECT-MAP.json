@@ -1,10 +1,10 @@
 {
   "schema": "ahp-project-map-v1",
   "repository": "antydizajn/anti-hallucination-protocol",
-  "generated_at": "2026-08-10T03:37:00+02:00",
+  "generated_at": "2026-08-10T03:47:00+02:00",
   "warning": "Branch existence and role can change. Resolve refs before relying on mutable state.",
   "branches": [
-    {"name":"main","role":"CANONICAL","purpose":"Current project code/docs and release lineage"},
+    {"name":"main","role":"CANONICAL","purpose":"Current project code/docs, autonomous bootstrap and release lineage"},
     {"name":"audit-methodology-v6","role":"CANDIDATE","purpose":"Next audit methodology/control plane"},
     {"name":"external-audits","role":"EVIDENCE_ARCHIVE","purpose":"External audit submissions and adjudication records"},
     {"name":"agent-bus","role":"COMMUNICATION","purpose":"JSON-only agent-to-agent messages"},
@@ -13,7 +13,7 @@
     {"name":"v5.4.2-user-pressure-invariant","role":"HISTORICAL","purpose":"Historical feature/release work"},
     {"name":"backup/pre-history-migration-2026-08-08","role":"BACKUP","purpose":"Migration safety backup"},
     {"name":"project-infrastructure-v1","role":"HISTORICAL","purpose":"Merged development branch for infrastructure now present on main"},
-    {"name":"autonomous-control-plane-v1","role":"CANDIDATE","purpose":"One-link autonomous work discovery, routing and handoff until merged"}
+    {"name":"autonomous-control-plane-v1","role":"HISTORICAL","purpose":"Merged development branch for one-link autonomous work discovery and routing now present on main"}
   ],
   "entrypoints": {
     "repo_url_only": ["AGENTS.md", "AGENT-BOOTSTRAP.json", "AUTONOMOUS-AGENT.md"],
