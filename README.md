@@ -252,13 +252,17 @@ Research is evidence for design choices, not decoration and not proof that the i
 
 ---
 
-## Audit trail
+## Audit methodology and trail
 
-The multi-model audit corpus and synthesis are archived under [`AUDITS/`](AUDITS/).
+Audit instructions and audit evidence are deliberately separated.
+
+Canonical audit methodology lives under [`AUDIT-METHODOLOGY/`](AUDIT-METHODOLOGY/). For a fresh independent forensic audit, use [`AUDIT-METHODOLOGY/CANONICAL-AGENT-AUDIT-PROMPT.md`](AUDIT-METHODOLOGY/CANONICAL-AGENT-AUDIT-PROMPT.md). The current production prompt is separated from its design history so blind auditors do not need to consume historical rationale before their novel-hunt phase.
+
+The methodology directory also contains the machine-ingestable [`REPORT-CONTRACT.md`](AUDIT-METHODOLOGY/REPORT-CONTRACT.md) and a separate [`BEHAVIORAL-EVALUATION-PROTOCOL.md`](AUDIT-METHODOLOGY/BEHAVIORAL-EVALUATION-PROTOCOL.md). A forensic repository audit, runtime smoke test and behavioral effectiveness benchmark are not treated as the same evidence class.
+
+The multi-model audit corpus, project synthesis and release evidence are archived under [`AUDITS/`](AUDITS/).
 
 `AUDITS/SUMMARY.md` separates execution-capable audits from document/static reviews, records conflicts and rejected severity claims, and tracks how findings were dispositioned in later releases. Auditor count is not treated as truth; reproduced failure mechanisms outrank model votes.
-
-For a fresh independent audit, use [`AUDITS/CANONICAL-AGENT-AUDIT-PROMPT.md`](AUDITS/CANONICAL-AGENT-AUDIT-PROMPT.md). It includes five iterations of the methodology and a final blind-first copy-paste prompt for independent agents.
 
 For a completely fresh continuation session, start with [`PROJECT-HANDOFF.md`](PROJECT-HANDOFF.md). It contains a three-iteration cold-start reconstruction of the project state, historical decisions, release evidence, startup integration, and the next behavioral-evaluation frontier. Treat the handoff as navigation, then verify current reality from the repository.
 
@@ -301,13 +305,19 @@ anti-hallucination-protocol/
 ├── .github/
 │   └── workflows/
 │       └── ci.yml                        # Python 3.11 / 3.13 regression gate
+├── AUDIT-METHODOLOGY/
+│   ├── README.md                         # control-plane boundary and usage
+│   ├── CANONICAL-AGENT-AUDIT-PROMPT.md   # current blind-first forensic prompt
+│   ├── REPORT-CONTRACT.md                # human + machine-readable output contract
+│   ├── BEHAVIORAL-EVALUATION-PROTOCOL.md # controlled A/B behavioral methodology
+│   └── PROMPT-DESIGN-HISTORY.md          # methodology lineage, not blind-phase input
 ├── AUDITS/
 │   ├── SUMMARY.md                        # top-level synthesis through v5.4.2
 │   ├── v5.4-round3-v5.4.1-summary.md     # detailed Round 3 adjudication
 │   ├── v5.4.2-release-status.md          # final v5.4.2 release evidence/status
 │   ├── v5.4.1-hardening-status.md        # historical v5.4.1 release evidence
-│   ├── CANONICAL-AGENT-AUDIT-PROMPT.md   # five-pass blind-first audit prompt
-│   ├── gpt-5.6-sol-v5.4-prompt-review.md # methodology review
+│   ├── CANONICAL-AGENT-AUDIT-PROMPT.md   # migration pointer only
+│   ├── gpt-5.6-sol-v5.4-prompt-review.md # historical methodology review
 │   ├── big-pickle-4.md                   # v5.4 execution audit artifact
 │   ├── PPX-GLM5.2.md                     # historical placeholder, not raw archive
 │   └── ...historical and Round 3 audit artifacts
