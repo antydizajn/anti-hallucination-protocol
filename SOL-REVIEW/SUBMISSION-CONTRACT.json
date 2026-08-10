@@ -1,0 +1,54 @@
+{
+  "schema": "ahp-sol-methodology-review-submission-v1",
+  "review_id": "SOL-METHODOLOGY-V6-001",
+  "reviewer_agent_id": "gpt-5.6-sol-green-reviewer",
+  "target_branch": "audit-methodology-v6",
+  "write_branch": "submission/sol-green-methodology-v6",
+  "purpose": "Fresh GPT-5.6 Sol review of audit methodology v6, not of the AHP implementation itself.",
+  "required_outputs": [
+    "SOL-REVIEW/REPORT.md",
+    "SOL-REVIEW/FINDINGS.json",
+    "SOL-REVIEW/COMPLETION.json"
+  ],
+  "write_rules": [
+    "Do not modify AUDIT-METHODOLOGY/**, AUDITS/**, SKILL.md, scripts/**, tests/**, references/**, README.md, CI, tags, releases, or main.",
+    "Write review artifacts only under SOL-REVIEW/** on this submission branch.",
+    "Do not fix findings during the review.",
+    "Do not rewrite prior audit evidence.",
+    "Do not use pull-request comments or issues as the primary report channel.",
+    "REPORT.md is human-readable analysis.",
+    "FINDINGS.json is the machine-readable finding ledger.",
+    "COMPLETION.json is created last and means only that the reviewer finished writing the required artifacts, not that project findings are accepted."
+  ],
+  "findings_json_minimum": {
+    "schema": "ahp-methodology-review-findings-v1",
+    "review_id": "SOL-METHODOLOGY-V6-001",
+    "reviewer_agent_id": "gpt-5.6-sol-green-reviewer",
+    "target_commit": "<resolved sha>",
+    "methodology_version": "6",
+    "findings": [
+      {
+        "finding_id": "S-M01",
+        "title": "<short title>",
+        "severity": "P0|P1|P2|P3|NOTE",
+        "confidence": 0.0,
+        "evidence_state": "REPRODUCED|FILE_VERIFIED|INFERENCE|HEURISTIC|UNVERIFIED|REJECTED",
+        "affected_artifact": "<path>",
+        "claim": "<what is wrong>",
+        "mechanism": "<why>",
+        "expected": "<expected behavior>",
+        "observed": "<observed behavior>",
+        "proposed_change": "<specific recommendation or NONE>"
+      }
+    ]
+  },
+  "completion_minimum": {
+    "schema": "ahp-methodology-review-completion-v1",
+    "review_id": "SOL-METHODOLOGY-V6-001",
+    "status": "COMPLETE",
+    "report_path": "SOL-REVIEW/REPORT.md",
+    "findings_path": "SOL-REVIEW/FINDINGS.json",
+    "summary_for_user": "<2-8 sentence summary>",
+    "next_agent": "gniewka-sol-primary"
+  }
+}
