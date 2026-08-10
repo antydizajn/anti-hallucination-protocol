@@ -94,14 +94,16 @@ def test_submission_triage_workflow_is_non_executing_and_deduplicated():
     assert not any(token in text for token in forbidden)
 
 
-def test_handoff_records_autonomous_control_plane_as_merged_and_external_as_candidate():
+def test_handoff_records_external_contributor_flow_as_merged():
     text = (ROOT / "PROJECT-HANDOFF.md").read_text(encoding="utf-8")
     assert "PR #9  - one-link autonomous control plane" in text
-    assert "1f24c35279a24cab097fae66817b6eba47bf3a94" in text
+    assert "PR #13 - zero-write external contributor fork/PR workflow" in text
+    assert "ec7816daea6250ee10835acad9f11f95c1e30a70" in text
     assert "GitHub Issues are the live work ledger" in text
     assert "CI PASS != BEHAVIORAL EFFECTIVENESS" in text
     assert "external-contributor-v1" in text
-    assert "CANDIDATE zero-write fork/PR contribution path until merged" in text
+    assert "HISTORICAL merged development branch" in text
+    assert "CANDIDATE zero-write fork/PR contribution path until merged" not in text
 
 
 def test_project_map_has_capability_routed_repo_entrypoint():
@@ -119,3 +121,5 @@ def test_project_map_has_capability_routed_repo_entrypoint():
     assert data["entrypoints"]["trusted_upstream_writer"] == "AUTONOMOUS-AGENT.md"
     assert data["entrypoints"]["live_work_ledger"] == "GitHub Issues with [AGENT-READY] marker"
     assert data["permission_modes"]["unknown_defaults_to"] == "EXTERNAL_CONTRIBUTOR"
+    branch = next(item for item in data["branches"] if item["name"] == "external-contributor-v1")
+    assert branch["role"] == "HISTORICAL"

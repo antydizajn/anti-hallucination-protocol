@@ -105,7 +105,7 @@ path: AUDIT-METHODOLOGY/CANONICAL-AGENT-AUDIT-PROMPT.md
 
 During blind Phase A, do not consume prior conclusions from `AUDITS/**`, `external-audits`, prior model reports, adjudication records or agent-bus messages that reveal previous findings.
 
-An external auditor should still deliver its report through the fork/PR path in `EXTERNAL-CONTRIBUTOR.md` unless explicitly authorized otherwise.
+An external auditor should deliver its report through the fork/PR path in `EXTERNAL-CONTRIBUTOR.md` unless explicitly authorized otherwise.
 
 ### Submit an audit, reproducer, behavioral evaluation or test case
 
@@ -180,7 +180,7 @@ Verify existence and current heads live.
 | `backup/pre-history-migration-2026-08-08` | `BACKUP` | migration safety backup |
 | `project-infrastructure-v1` | `HISTORICAL` | merged infrastructure development branch |
 | `autonomous-control-plane-v1` | `HISTORICAL` | merged one-link autonomous control-plane development branch |
-| `external-contributor-v1` | `CANDIDATE` | zero-write fork/PR contribution path until merged |
+| `external-contributor-v1` | `HISTORICAL` | merged zero-write fork/PR contributor development branch |
 
 Machine-readable companion: `PROJECT-MAP.json`.
 

@@ -1,8 +1,6 @@
 # Anti-Hallucination Protocol - Cold-Start Handoff
 
-This file is a compact continuation checkpoint for a completely fresh agent.
-
-It is not a live status database.
+This file is a compact continuation checkpoint for a completely fresh agent. It is not a live status database.
 
 ```text
 VERIFY MUTABLE REALITY BEFORE RELYING ON THIS FILE
@@ -23,22 +21,29 @@ v5.4.2
 
 Do not assume current `main` equals the release tree.
 
-## Fresh-agent start
+## Fresh-agent routing
 
-Given only the repository URL:
+Given only the repository URL, start with:
 
 ```text
+README.md
 AGENTS.md
 AGENT-BOOTSTRAP.json
 PROJECT-MAP.json
 ```
 
-Then route by actual permission capability.
+Then route by actual GitHub capability:
 
 ```text
 proven upstream push permission -> TRUSTED_UPSTREAM_WRITER
 no upstream push permission      -> EXTERNAL_CONTRIBUTOR
 permission unknown               -> EXTERNAL_CONTRIBUTOR
+```
+
+Trusted project agents use:
+
+```text
+AUTONOMOUS-AGENT.md
 ```
 
 External contributors use:
@@ -49,64 +54,29 @@ CONTRIBUTING.md
 scripts/external_contributor.py
 ```
 
-Trusted project agents use:
+External contributors do not need collaborator `Write` or `agent-bus` write access.
 
-```text
-AUTONOMOUS-AGENT.md
-```
+## Canonical infrastructure now on main
 
-## Canonical infrastructure already on main
-
-Historical merge checkpoints before the external-contributor candidate:
+Historical merge checkpoints:
 
 ```text
 PR #7  - project map, cryptographic agent identity, external submission intake
 PR #8  - project-map continuity
 PR #9  - one-link autonomous control plane
 PR #10 - autonomous post-merge continuity
+PR #13 - zero-write external contributor fork/PR workflow
 ```
 
-Observed main checkpoint before `external-contributor-v1` was created:
+Observed merge commit for PR #13:
 
 ```text
-1f24c35279a24cab097fae66817b6eba47bf3a94
+ec7816daea6250ee10835acad9f11f95c1e30a70
 ```
 
-Resolve current `main` live before acting.
+This SHA is a historical checkpoint. Resolve current `main` live before acting.
 
-## Current branch roles
-
-Verify branch existence and heads live.
-
-```text
-main
-  CANONICAL project code/docs/release lineage
-
-audit-methodology-v6
-  CANDIDATE audit methodology/control plane
-
-external-audits
-  EVIDENCE_ARCHIVE for external audits and adjudication records
-
-agent-bus
-  COMMUNICATION plane for trusted JSON-only agent messages
-
-submission/*
-  isolated submission/reviewer workspaces
-
-external-contributor-v1
-  CANDIDATE zero-write fork/PR contribution path until merged
-
-ahp-usage-test
-  EXPERIMENTAL historical usage/behavior material
-
-backup/pre-history-migration-2026-08-08
-  BACKUP only
-```
-
-`PROJECT-MAP.json` is the machine-readable companion.
-
-## Live operational work
+## Live work ledger
 
 GitHub Issues are the live work ledger.
 
@@ -116,13 +86,13 @@ Ready autonomous work uses:
 [AGENT-READY]
 ```
 
-Priority markers:
+Priority:
 
 ```text
-[P0] [P1] [P2] [P3]
+[P0] -> [P1] -> [P2] -> [P3]
 ```
 
-`TODO.md` remains roadmap context, not current work truth.
+`TODO.md` is roadmap context, not proof that an item is operationally open.
 
 If there is no explicit user task and no ready Issue:
 
@@ -130,9 +100,9 @@ If there is no explicit user task and no ready Issue:
 STOP_WITH_NO_ASSIGNED_WORK
 ```
 
-Do not invent work merely to keep an agent busy.
+Do not manufacture work.
 
-## External contributor architecture candidate
+## Canonical zero-write external contribution flow
 
 Purpose:
 
@@ -142,10 +112,8 @@ ONE PUBLIC REPO URL
 ZERO UPSTREAM WRITE ACCESS
 +
 MINIMAL HUMAN RELAY
--> VALIDATED PULL REQUEST
+-> VALIDATED EXTERNAL PULL REQUEST
 ```
-
-External agents must not need collaborator `Write`.
 
 Normal path:
 
@@ -159,40 +127,32 @@ public upstream
 -> Pull Request to upstream
 ```
 
-The helper candidate is:
-
-```text
-scripts/external_contributor.py
-```
-
-Primary commands:
+Helper:
 
 ```bash
 python3 scripts/external_contributor.py start
 python3 scripts/external_contributor.py submit
 ```
 
-It is intended to:
+The helper is designed to:
 
-- verify Git/GitHub CLI availability;
+- verify Git and GitHub CLI availability;
 - verify GitHub authentication;
 - detect upstream push permission;
 - default unknown permission to external mode;
-- create/reuse a fork;
+- create or reuse the contributor's fork;
 - discover `[AGENT-READY]` work;
-- resolve exact target ref/commit;
-- scaffold external submissions;
-- calculate artifact hashes;
-- run `check_external_submission.py` locally;
-- push only to the contributor fork;
+- resolve exact target ref and commit;
+- scaffold machine-readable submissions for audit/test/reproducer tasks;
+- calculate artifact SHA-256 values;
+- run `scripts/check_external_submission.py` locally;
+- push only to the contributor's `fork` remote in external mode;
 - create an upstream Pull Request;
 - require a real upstream PR URL before declaring delivery success.
 
-Until this branch is merged and verified, treat the helper as candidate infrastructure.
+## Target and delivery are separate
 
-## Important target/delivery separation
-
-For an audit of a non-main candidate, the thing being inspected and the branch receiving the report are different concepts.
+For audit-like work, the inspected target may differ from the branch receiving the report.
 
 Example:
 
@@ -204,51 +164,43 @@ DELIVERY BASE
   main
 ```
 
-The candidate helper creates a detached target worktree when necessary while keeping the submission branch based on the delivery branch.
-
-This prevents an audit submission PR from accidentally importing the entire target candidate diff.
-
-Never collapse:
+The helper creates a detached target worktree where necessary while keeping the report/submission branch based on the delivery branch.
 
 ```text
 TARGET_REF != DELIVERY_BASE
 ```
 
-when the task contract distinguishes them.
+This prevents an audit submission from accidentally importing the target candidate's entire diff into the submission PR.
 
 ## External claim semantics
 
-External contributors may often comment on public Issues despite lacking repository push access.
+The helper attempts an `AHP_WORK_CLAIM_V1` Issue comment as best effort.
 
-The helper attempts an `AHP_WORK_CLAIM_V1` comment as best effort.
-
-If comments are unavailable:
+If Issue commenting is unavailable:
 
 ```text
 DO NOT REQUEST WRITE ACCESS
 ```
 
-Continue in the fork. The Pull Request becomes the durable project-visible handoff.
+Continue in the fork. The resulting Pull Request becomes the durable project-visible handoff. Duplicate execution remains possible when no claim channel is available.
 
-Duplicate work may remain possible when no claim channel is available.
+## External intake security
 
-## External submission intake
-
-Canonical machine-friendly path:
+Canonical machine-friendly evidence path:
 
 ```text
 SUBMISSIONS/INBOX/<submission-id>/
 ```
 
-Generic intake is deliberately non-executing.
+Generic intake is deliberately non-executing:
 
 ```text
 RECEIVED CODE != SAFE TO EXECUTE
 ```
 
-The intake validator checks structural shape, paths and declared SHA-256 values.
+Fork Pull Request validation uses the ordinary unprivileged `pull_request` event with read-only content permission. Do not replace this with privileged `pull_request_target` merely to obtain secrets or write credentials.
 
-Successful intake means:
+Successful intake establishes only:
 
 ```text
 STRUCTURALLY_VALID_SUBMISSION
@@ -256,7 +208,24 @@ STRUCTURALLY_VALID_SUBMISSION
 
 not factual acceptance.
 
-Fork Pull Request validation uses the ordinary unprivileged `pull_request` event. Do not change this to privileged `pull_request_target` merely to gain secrets or write credentials.
+## Verification evidence for PR #13
+
+On the final PR #13 head before merge:
+
+```text
+AHP regression suite: SUCCESS
+Python 3.11: PASS
+Python 3.13: PASS
+Python 3.13: 151/151 tests passed
+V5 INTEGRITY: PASS
+RESEARCH PROVENANCE: PASS
+portable L1/L2 liveness: PASS
+External submission intake workflow: PASS
+```
+
+This proves the checked repository contracts on that PR tree. It does not prove a real stranger completed the full fork-to-PR workflow end to end.
+
+The strongest remaining operational verification is an actual external-account acceptance test using only the public repository URL.
 
 ## Agent identity
 
@@ -279,8 +248,6 @@ VALID SIGNATURE != MODEL IDENTITY PROVEN
 MULTIPLE SIGNED AGENTS != INDEPENDENT EVIDENCE
 ```
 
-External contribution does not require agent-bus write access.
-
 ## Audit methodology v6
 
 Candidate branch:
@@ -289,13 +256,13 @@ Candidate branch:
 audit-methodology-v6
 ```
 
-Control plane:
+Control-plane namespace:
 
 ```text
 AUDIT-METHODOLOGY/
 ```
 
-Blind Phase A must not consume prior conclusions from:
+Before provisional blind findings, do not consume prior conclusions from:
 
 ```text
 AUDITS/**
@@ -306,7 +273,39 @@ agent-bus messages revealing prior findings
 conversation summaries of prior methodology conclusions
 ```
 
-Do not call methodology v6 canonical without verifying merge state.
+Do not call methodology v6 canonical without verifying its merge state.
+
+## Branch roles
+
+Verify branches and heads live. Intended roles:
+
+```text
+main
+  CANONICAL
+
+audit-methodology-v6
+  CANDIDATE
+
+external-audits
+  EVIDENCE_ARCHIVE
+
+agent-bus
+  TRUSTED COMMUNICATION
+
+submission/*
+  SUBMISSION WORKSPACES
+
+external-contributor-v1
+  HISTORICAL merged development branch
+
+ahp-usage-test
+  EXPERIMENTAL
+
+backup/pre-history-migration-2026-08-08
+  BACKUP
+```
+
+Machine-readable companion: `PROJECT-MAP.json`.
 
 ## Core epistemic boundaries
 
@@ -322,6 +321,7 @@ ISSUE OPEN != FINDING TRUE
 AGENT ASSIGNED != AGENT CORRECT
 SIGNED != TRUE
 RECEIVED != VERIFIED
+STRUCTURALLY_VALID_SUBMISSION != ACCEPTED_FINDING
 AUDITOR REPRODUCED != PROJECT REPRODUCED
 REPRODUCED != FIXED
 PATCHED != RELEASED
@@ -340,7 +340,7 @@ One reproducer outranks five opinions.
 
 ## Historical v5.4.2 release evidence
 
-Recorded release verification includes:
+Recorded release verification:
 
 ```text
 Python 3.11 CI: PASS
@@ -352,30 +352,15 @@ portable L1/L2 liveness: PASS
 behavioral obedience: UNKNOWN
 ```
 
-These facts describe the release verification event, not automatically current `main`.
-
-Later infrastructure/autonomy PRs increased the current test inventory. Never repeat historical test counts as current evidence without observing the relevant run.
+Those facts describe the release verification event, not current `main`.
 
 ## Current scientific frontier
 
 Behavioral effectiveness in real Hermes sessions remains unproven by deterministic tests alone.
 
-High-value behavioral conditions include:
+High-value conditions include long context, tool failure, contradictory evidence, user pressure, correlated sources, current-state questions, prompt injection inside evidence, completion pressure, model/provider changes and session compaction/restart.
 
-```text
-long context
-tool failure
-contradictory evidence
-user pressure
-correlated sources
-current-state questions
-prompt injection inside evidence
-completion pressure
-model/provider changes
-session compaction/restart
-```
-
-Use controlled baseline-vs-AHP evaluation and keep same-model self-test diagnostics separate from independent evidence.
+Use controlled baseline-vs-AHP evaluation. Same-model self-tests are diagnostic, not independent behavioral evidence.
 
 ## Cold-start live verification
 
@@ -391,6 +376,8 @@ current relevant Actions runs
 current SKILL.md version
 current diff from latest release tag
 ```
+
+Never repeat a historical test count as current evidence without observing the relevant run.
 
 ## Repository boundary
 
