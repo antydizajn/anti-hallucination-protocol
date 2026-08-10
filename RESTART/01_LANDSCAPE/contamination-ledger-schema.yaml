@@ -1,0 +1,78 @@
+schema_version: 1.0.0
+artifact: contamination_ledger
+status: normative_gate_1_schema
+purpose: track exposure, leakage risk and evidence pool eligibility
+required:
+  - benchmark_id
+  - exposure_class
+  - evidence_pool
+  - inspected_by_designers
+  - item_level_exposure
+  - model_training_exposure
+  - intervention_design_exposure
+  - contamination_evidence
+  - unknowns
+fields:
+  benchmark_id:
+    type: string
+  exposure_class:
+    enum:
+      C0: sealed_or_no_known_exposure_but_not_proven_absent
+      C1: dynamic_or_recent_public_material
+      C2: historical_public_benchmark
+      C3: direct_overlap_or_high_risk
+      CX: unknown
+  evidence_pool:
+    enum:
+      - D0_MEASUREMENT_DEVELOPMENT
+      - D1_CONTROL_DISCOVERY
+      - D2_CONFIRMATORY_CANDIDATE
+      - T_TRANSFER_CANDIDATE
+      - EXCLUDE
+  inspected_by_designers:
+    enum: [NONE, METADATA_ONLY, ITEM_LEVEL, RESULTS_ONLY, UNKNOWN]
+  item_level_exposure:
+    type: boolean_or_unknown
+  answer_key_exposure:
+    type: boolean_or_unknown
+  grader_exposure:
+    type: boolean_or_unknown
+  leaderboard_exposure:
+    type: boolean_or_unknown
+  model_training_exposure:
+    enum: [KNOWN, SUSPECTED, UNKNOWN, NOT_APPLICABLE]
+  intervention_design_exposure:
+    enum: [NONE, INDIRECT, DIRECT, UNKNOWN]
+  attack_class_exposure:
+    enum: [NONE, METADATA_ONLY, CONCEPT_ONLY, INSTANCE_LEVEL, UNKNOWN]
+  contamination_evidence:
+    type: list
+    item:
+      date: string_or_null
+      source: string_or_null
+      claim: string
+      strength: CONFIRMED|STRONG_SIGNAL|WEAK_SIGNAL|UNKNOWN
+  unknowns:
+    type: list
+  overlap_checks:
+    exact:
+      status: NOT_RUN|PASS|FAIL|UNKNOWN
+      artifact: string_or_null
+    normalized:
+      status: NOT_RUN|PASS|FAIL|UNKNOWN
+      artifact: string_or_null
+    semantic:
+      status: NOT_RUN|PASS|FAIL|UNKNOWN
+      artifact: string_or_null
+  d2_admission:
+    eligible: boolean
+    reason: string
+    custodian: string_or_null
+    commitment_hash: string_or_null
+    freeze_date: string_or_null
+validation:
+  - D2 requires inspected_by_designers in [NONE, METADATA_ONLY]
+  - D2 requires commitment_hash
+  - D2 requires explicit custodian
+  - unknown contamination cannot be converted into clean status
+  - public availability cannot be interpreted as sealed
