@@ -1,0 +1,88 @@
+schema_version: 1.0.0
+artifact: ahp_evidence_pool_assignment
+status: normative
+required_fields:
+  - assignment_id
+  - benchmark_id
+  - benchmark_version
+  - assigned_pool
+  - allowed_uses
+  - forbidden_uses
+  - exposure_basis
+  - lineage_group
+  - contamination_class
+  - assignment_rationale
+  - reviewer
+  - review_date
+fields:
+  assignment_id:
+    type: string
+  benchmark_id:
+    type: string
+  benchmark_version:
+    type: string_or_null
+  split_or_shard:
+    type: string_or_null
+  assigned_pool:
+    type: enum
+    values:
+      - D0_MEASUREMENT_DEVELOPMENT
+      - D1_CONTROL_DISCOVERY
+      - D2_CONFIRMATORY_CANDIDATE
+      - T_TRANSFER_CANDIDATE
+      - EXCLUDE
+  assignment_status:
+    type: enum
+    values: [PROVISIONAL, FROZEN, BURNED, RETIRED]
+  allowed_uses:
+    type: array_string
+  forbidden_uses:
+    type: array_string
+  exposure_basis:
+    type: object
+    fields:
+      intervention_designer_item_access: NONE | METADATA_ONLY | ITEM_LEVEL | RESULTS_LEVEL | UNKNOWN
+      control_results_seen: true | false | unknown
+      answer_key_seen: true | false | unknown
+      benchmark_recipe_seen: true | false | unknown
+      public_leaderboard_seen: true | false | unknown
+      attack_ontology_seen: true | false | unknown
+  lineage_group:
+    type: string
+  contamination_class:
+    type: enum
+    values: [C0, C1, C2, C3, CX]
+  overlap_status:
+    type: string
+  grader_risk_status:
+    type: string
+  holdout:
+    type: object_or_null
+    fields:
+      custodian: string_or_null
+      content_visible_to_treatment_designers: true | false | unknown
+      generation_rule_frozen: true | false | unknown
+      manifest_hash: string_or_null
+      encrypted_or_external_content_hash: string_or_null
+      freeze_timestamp: string_or_null
+      consumed_timestamp: string_or_null
+      consumed_by_attempt_id: string_or_null
+  assignment_rationale:
+    type: string
+  critical_unknowns:
+    type: array_string
+  downgrade_triggers:
+    type: array_string
+  reviewer:
+    type: string
+  review_date:
+    type: date
+invariants:
+  - "one benchmark split/shard has exactly one current evidence pool"
+  - "item-level exposure to intervention designers forbids D2_CONFIRMATORY_CANDIDATE for that intervention lineage"
+  - "control results used to design treatment forbid reuse of the same evidence as D2 for that lineage"
+  - "D2 requires an unopened holdout commitment before treatment implementation"
+  - "BURNED D2 never returns to FROZEN"
+  - "UNKNOWN exposure never maps to proven clean exposure"
+  - "T_TRANSFER_CANDIDATE requires a documented material lineage difference relevant to the claim"
+  - "pool reassignment requires a new review record; history is append-only"
