@@ -126,8 +126,14 @@ The canonical byte sequence is UTF-8 JSON with:
 - no trailing newline added to the signed bytes;
 - JSON values preserved exactly after parsing;
 - floating-point values forbidden in signed payloads to avoid cross-runtime representation ambiguity.
+- duplicate object keys forbidden anywhere in the message, so one signature cannot cover two
+  semantically different inputs.
 
-The canonicalizer fails closed on floats or unsupported top-level shape.
+The canonicalizer fails closed on floats, duplicate object keys, or unsupported top-level shape.
+
+Duplicate keys matter because a permissive JSON parser silently keeps the last value: without
+this rule, `{"a":1,"a":2}` and `{"a":2}` produce identical canonical bytes and therefore share
+one valid signature.
 
 ## Registry
 

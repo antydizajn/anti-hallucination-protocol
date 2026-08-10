@@ -15,7 +15,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from canonicalize_agent_message import canonical_bytes
+from canonicalize_agent_message import canonical_bytes, load_message
 
 NAMESPACE = "ahp-agent-bus-v1"
 
@@ -51,8 +51,8 @@ def main() -> int:
     try:
         if shutil.which("ssh-keygen") is None:
             raise RuntimeError("ssh-keygen unavailable")
-        message = json.loads(args.message.read_text(encoding="utf-8"))
-        registry = json.loads(args.registry.read_text(encoding="utf-8"))
+        message = load_message(args.message.read_text(encoding="utf-8"))
+        registry = load_message(args.registry.read_text(encoding="utf-8"))
         signed = message.get("signed")
         sigmeta = message.get("signature")
         if not isinstance(signed, dict) or not isinstance(sigmeta, dict):
