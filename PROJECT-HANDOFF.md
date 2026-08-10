@@ -4,8 +4,6 @@ This file is a compact continuation checkpoint for a completely fresh agent.
 
 It is not a live status database.
 
-Rule zero:
-
 ```text
 VERIFY MUTABLE REALITY BEFORE RELYING ON THIS FILE
 ```
@@ -23,7 +21,7 @@ v5.4.2
 94bfd13f9c4818a949775bd73c1c0d91ce6a3116
 ```
 
-Do not assume current `main` still equals that release tree.
+Do not assume current `main` equals the release tree.
 
 ## Fresh-agent start
 
@@ -37,162 +35,54 @@ README.md
 PROJECT-MAP.json
 ```
 
-Then follow the live-work discovery contract in `AUTONOMOUS-AGENT.md`.
+Then follow `AUTONOMOUS-AGENT.md`.
 
-If you received an explicit task, use `AGENTS.md` to locate the correct workflow and branch.
+If the user gave an explicit task, use `AGENTS.md` to route it.
 
-## Current canonical architecture
+If the user gave only the repository URL, GitHub Issues with `[AGENT-READY]` are the live work queue.
 
-As of the reconstruction that produced this handoff, `main` contains:
+If no safe ready item exists:
 
 ```text
-SKILL.md
-README.md
+STOP_WITH_NO_ASSIGNED_WORK
+```
+
+Do not manufacture a mission.
+
+## Canonical infrastructure now on main
+
+Project infrastructure merged through:
+
+```text
+PR #7 - project map, agent identity, external submission intake
+PR #8 - post-merge project-map continuity
+PR #9 - autonomous one-link control plane
+```
+
+Observed merge commit for PR #9:
+
+```text
+8169b8d5cc3465ca56812b3aa6d2315c7032a075
+```
+
+This SHA is a historical checkpoint. Resolve current `main` live before acting.
+
+`main` now includes:
+
+```text
 AGENTS.md
+AGENT-BOOTSTRAP.json
+AUTONOMOUS-AGENT.md
 PROJECT-MAP.json
 PROJECT-HANDOFF.md
-TODO.md
 AGENT-IDENTITY/
 SUBMISSIONS/
-scripts/
-tests/
-AUDITS/
-.github/workflows/
-```
-
-The project infrastructure merged through PR #7 and continuity fix PR #8.
-
-The latest observed `main` commit before the autonomous-control-plane candidate was created was:
-
-```text
-a3e1b436b9b296cb056f3c658e9b52db510ba7a9
-```
-
-This SHA is historical context. Resolve current `main` live before acting.
-
-## Branch roles
-
-Verify branch existence and heads live. Intended roles are:
-
-```text
-main
-  CANONICAL code/docs/release lineage
-
-audit-methodology-v6
-  CANDIDATE audit methodology/control plane
-
-external-audits
-  EVIDENCE_ARCHIVE for external audits and project adjudication records
-
-agent-bus
-  COMMUNICATION plane for JSON-only agent-to-agent messages
-
-submission/*
-  isolated reviewer/submission workspaces
-
-ahp-usage-test
-  EXPERIMENTAL historical behavioral/usage material
-
-backup/pre-history-migration-2026-08-08
-  BACKUP only
-
-v5.4.2-user-pressure-invariant
-  HISTORICAL feature/release branch
-```
-
-`PROJECT-MAP.json` is the machine-readable companion.
-
-## New project infrastructure now on main
-
-### Root navigation
-
-`AGENTS.md` is the human/agent project map.
-
-It answers:
-
-```text
-where is canonical code?
-where are audits?
-where do I submit evidence?
-where do agents communicate?
-where do I run tests?
-which branches are historical?
-```
-
-### Agent identity
-
-`AGENT-IDENTITY/` defines an optional Ed25519/OpenSSH signature layer.
-
-Assurance ladder:
-
-```text
-DECLARED_IDENTITY_ONLY
-KEY_BOUND_IDENTITY
-DEDICATED_GITHUB_PRINCIPAL
-DUAL_ATTESTED
-```
-
-Current critical limit:
-
-```text
-VALID SIGNATURE != TRUE CONTENT
-VALID SIGNATURE != MODEL IDENTITY PROVEN
-VALID SIGNATURE != HUMAN NON-INTERVENTION PROVEN
-MULTIPLE SIGNED AGENTS != INDEPENDENT EVIDENCE
-```
-
-Real private keys are intentionally not stored in the repository.
-
-A real agent reaches `KEY_BOUND_IDENTITY` only after an Ed25519 private key is generated and stored outside GitHub/repository content and its public key is reviewed into `AGENT-IDENTITY/registry.json`.
-
-### External submissions
-
-`SUBMISSIONS/` is the preferred machine-friendly intake path.
-
-A submission has:
-
-```text
-SUBMISSIONS/INBOX/<submission-id>/manifest.json
-plus declared artifacts
-```
-
-`check_external_submission.py` validates structure, confinement and declared hashes.
-
-The submission intake Action is deliberately non-executing.
-
-Never collapse:
-
-```text
-STRUCTURALLY_VALID_SUBMISSION != ACCEPTED_FINDING
-RECEIVED != REPRODUCED
-```
-
-A GitHub Issue Form is also present as a human-friendly fallback.
-
-## Autonomous control-plane candidate
-
-The branch that introduced this handoff revision is:
-
-```text
-autonomous-control-plane-v1
-```
-
-Its intended additions are:
-
-```text
-AUTONOMOUS-AGENT.md
-AGENT-BOOTSTRAP.json
-.github/agents/ahp-router.md
-.github/agents/ahp-forensic-auditor.md
-.github/agents/ahp-reproducer.md
-.github/agents/ahp-remediator.md
-.github/agents/ahp-release-verifier.md
+.github/agents/
+.github/workflows/submission-intake.yml
 .github/workflows/submission-triage.yml
 ```
 
-Until merged, these are candidate infrastructure, not canonical `main`.
-
-Purpose:
+## Operational model
 
 ```text
 ONE REPOSITORY URL
@@ -205,33 +95,194 @@ ONE REPOSITORY URL
 -> HANDOFF
 ```
 
-GitHub Issues become the live operational work ledger for `[AGENT-READY]` items.
-
-A fresh agent receiving only the repo URL must not invent work. If no safe `[AGENT-READY]` item exists:
+Live work state belongs primarily in GitHub Issues.
 
 ```text
-STOP_WITH_NO_ASSIGNED_WORK
+TODO.md = strategic roadmap context
+GitHub Issues = live operational work ledger
 ```
+
+Ready autonomous work is marked:
+
+```text
+[AGENT-READY]
+```
+
+Claim and handoff schemas:
+
+```text
+AHP_WORK_CLAIM_V1
+AHP_WORK_HANDOFF_V1
+```
+
+Normal change path:
+
+```text
+Issue
+-> claim
+-> branch
+-> reproduce when applicable
+-> patch if authorized
+-> tests/gates
+-> Pull Request
+-> CI
+-> merge
+-> release verification when applicable
+```
+
+## Specialized repository agent roles
+
+Repository-level GitHub custom-agent profiles live under:
+
+```text
+.github/agents/
+```
+
+Current roles:
+
+```text
+ahp-router
+ahp-forensic-auditor
+ahp-reproducer
+ahp-remediator
+ahp-release-verifier
+```
+
+A non-GitHub execution-capable agent should follow the same role boundaries manually.
+
+Role separation matters:
+
+```text
+AUDITOR != PROJECT ADJUDICATOR
+REPRODUCER != REMEDIATOR BEFORE EVIDENCE CAPTURE
+REMEDIATOR != RELEASE VERIFIER
+AGENT ASSIGNED != AGENT CORRECT
+```
+
+## Branch roles
+
+Verify current branch existence and heads live.
+
+Intended semantics:
+
+```text
+main
+  CANONICAL code/docs/release lineage and autonomous bootstrap
+
+audit-methodology-v6
+  CANDIDATE audit methodology/control plane until its merge state changes
+
+external-audits
+  EVIDENCE_ARCHIVE for external reports and project adjudication records
+
+agent-bus
+  COMMUNICATION plane for JSON-only agent-to-agent messages
+
+submission/*
+  isolated reviewer/submission workspaces
+
+ahp-usage-test
+  EXPERIMENTAL historical behavioral/usage material
+
+project-infrastructure-v1
+  HISTORICAL merged development branch
+
+autonomous-control-plane-v1
+  HISTORICAL merged development branch
+
+backup/pre-history-migration-2026-08-08
+  BACKUP only
+
+v5.4.2-user-pressure-invariant
+  HISTORICAL release-feature branch
+```
+
+Machine-readable companion:
+
+```text
+PROJECT-MAP.json
+```
+
+## Agent identity
+
+`AGENT-IDENTITY/` defines optional Ed25519/OpenSSH sender verification.
+
+Assurance ladder:
+
+```text
+DECLARED_IDENTITY_ONLY
+KEY_BOUND_IDENTITY
+DEDICATED_GITHUB_PRINCIPAL
+DUAL_ATTESTED
+```
+
+Private keys must remain outside repository content.
+
+Do not collapse:
+
+```text
+VALID SIGNATURE != TRUE CONTENT
+VALID SIGNATURE != MODEL IDENTITY PROVEN
+VALID SIGNATURE != HUMAN NON-INTERVENTION PROVEN
+MULTIPLE SIGNED AGENTS != INDEPENDENT EVIDENCE
+```
+
+A real agent reaches `KEY_BOUND_IDENTITY` only after its external private key exists and the corresponding public key is reviewed into `AGENT-IDENTITY/registry.json`.
+
+## External submissions
+
+Preferred machine-friendly intake:
+
+```text
+SUBMISSIONS/INBOX/<submission-id>/manifest.json
+```
+
+The validator checks structure, path confinement, declared artifacts and hashes.
+
+The intake workflow is deliberately non-executing.
+
+After a submission has entered canonical `main`, deterministic submission triage creates one `[AGENT-READY]` Issue per `submission_id` unless the marker already exists.
+
+Never collapse:
+
+```text
+STRUCTURALLY_VALID_SUBMISSION != ACCEPTED_FINDING
+RECEIVED != REPRODUCED
+AUDITOR REPRODUCED != PROJECT REPRODUCED
+```
+
+A GitHub Issue Form exists as human-friendly fallback.
+
+## External audit evidence
+
+Dedicated external archive:
+
+```text
+branch: external-audits
+path: EXTERNAL-AUDITS/
+```
+
+Archive state, project evidence state and project disposition are separate dimensions.
+
+Archived does not mean true, reproduced, accepted or fixed.
 
 ## Audit methodology v6
 
-A separate candidate branch exists:
+Candidate branch:
 
 ```text
 audit-methodology-v6
 ```
 
-Its intended control-plane namespace is:
+Control-plane namespace:
 
 ```text
 AUDIT-METHODOLOGY/
 ```
 
-It separates audit instructions from historical audit evidence.
+It is designed to separate audit instructions from historical evidence.
 
-Important blind-audit boundary:
-
-before provisional findings, a fresh auditor should not consume prior conclusions from:
+Before provisional blind findings, do not consume prior conclusions from:
 
 ```text
 AUDITS/**
@@ -245,35 +296,23 @@ Do not call methodology v6 canonical until its actual merge state is verified.
 
 ## Agent bus
 
-A dedicated communication branch exists:
+Communication branch:
 
 ```text
 agent-bus
 ```
 
-Its protocol uses JSON-only immutable agent-to-agent messages.
+Agent conversational traffic is JSON-only under `AGENT-BUS/`.
 
-Communication artifact:
+Communication artifacts are not audit evidence or project adjudication by themselves.
 
-```text
-AGENT-BUS message JSON
-```
+The original bus messages used declared identities. Do not retroactively call unsigned historical messages cryptographically authenticated.
 
-is not the same as:
+New messages can use `AGENT-IDENTITY/` once real key provisioning exists.
 
-```text
-audit evidence
-project adjudication
-code change
-```
+## Release and CI evidence
 
-The bus initially used `DECLARED_IDENTITY_ONLY`. New signed messages can later use the `AGENT-IDENTITY/` protocol once real external private-key provisioning exists.
-
-Do not retroactively describe unsigned historical messages as cryptographically authenticated.
-
-## v5.4.2 historical release evidence
-
-Recorded release verification includes:
+Historical v5.4.2 release verification recorded:
 
 ```text
 Python 3.11 CI: PASS
@@ -286,11 +325,24 @@ user-pressure invariant: present and regression-locked
 behavioral obedience: UNKNOWN
 ```
 
-These are facts about the release verification event, not automatically facts about current `main`.
+These are release-event facts, not current-main facts.
 
-The infrastructure PR #7 later produced a successful current-branch regression run in which Python 3.13 collected 134 tests and all 134 passed, including new infrastructure tests. That evidence concerned the infrastructure PR tree, not the v5.4.2 release tag.
+PR #7 infrastructure candidate later passed a Python 3.13 run with 134/134 tests.
 
-## Epistemic invariants to preserve
+PR #9 autonomous-control-plane candidate later passed:
+
+```text
+Python 3.11 regression job: PASS
+Python 3.13 regression job: PASS
+Python 3.13: 142/142 tests passed
+V5 INTEGRITY: PASS
+RESEARCH PROVENANCE: PASS
+portable L1/L2 liveness: PASS
+```
+
+Those results apply to the tested PR tree. They still do not prove behavioral effectiveness.
+
+## Core epistemic invariants
 
 ```text
 claim strength <= evidence strength
@@ -311,13 +363,13 @@ LOADED != OBEYED
 USER PRESSURE + NO NEW EVIDENCE != STRONGER EVIDENCE STATE
 ```
 
-Canonical project maxim:
+Project maxim:
 
 ```text
 One reproducer outranks five opinions.
 ```
 
-## Core release/runtime architecture
+## AHP architecture boundary
 
 AHP remains:
 
@@ -326,7 +378,7 @@ compact active policy in SKILL.md
 +
 progressive-disclosure references
 +
-narrow deterministic scripts
+narrow deterministic helpers
 +
 regression/adversarial tests
 +
@@ -342,21 +394,21 @@ a truth oracle
 a semantic theorem prover
 a sandbox
 a proof that Markdown instructions were obeyed
-a proof of real-world source independence
+a proof of source independence
 a proof of behavioral effectiveness
 ```
 
-Do not casually re-bloat `SKILL.md` with audit/archive/infrastructure detail.
+Do not bloat `SKILL.md` with repository orchestration details that belong in the control-plane files.
 
 ## Current scientific frontier
 
 The largest unresolved practical question remains behavioral effectiveness in real Hermes sessions.
 
-Deterministic tests prove checked contracts, not that a model obeys AHP under:
+Unit tests and successful startup/loading do not establish performance under:
 
 ```text
 long context
-tool failure
+tool failures
 contradictory evidence
 user pressure
 correlated sources
@@ -367,39 +419,24 @@ model/provider changes
 session compaction/restart
 ```
 
-A proper behavioral benchmark should compare baseline vs AHP under controlled conditions and keep self-test diagnostics separate from independent evaluation.
+A proper benchmark needs controlled baseline vs AHP evaluation and must separate self-test diagnostics from independent behavioral evidence.
 
-## Open operational work
-
-`TODO.md` still contains strategic/open historical roadmap items, including audit archive integrity, Round 3 evidence inventory, repository protection/release mechanics and behavioral benchmark work.
-
-However:
-
-```text
-TODO.md = ROADMAP CONTEXT
-GitHub Issues = LIVE OPERATIONAL WORK LEDGER
-```
-
-Verify whether an Issue already exists before creating duplicate work.
-
-## Cold-start verification checklist
+## Cold-start live verification
 
 Before consequential work, obtain current equivalents of:
 
 ```text
 current main HEAD
 current branch list
-latest tags
-current open Issues
-current open PRs
-current CI workflows and relevant runs
+latest release tags
+open [AGENT-READY] Issues
+open Pull Requests
+current relevant CI runs
 current SKILL.md version
 current diff from latest release tag
 ```
 
-If implementation correctness matters, run or inspect the actual current test suite and deterministic gates.
-
-Never repeat a historical test count as a current result without observing it.
+Do not repeat historical test counts as current results without observing them.
 
 ## Repository boundary
 
@@ -415,13 +452,13 @@ Historical context only:
 antydizajn/hermes-skills/software-development/anti-hallucination-protocol
 ```
 
-Do not edit or sync the old subtree as part of normal AHP work.
+Do not edit or sync the historical subtree during normal AHP work.
 
-## Final cold-start rule
+## Final rule
 
-A fresh agent should be able to begin from one URL.
+A fresh agent can now begin from one repository URL.
 
-But autonomy does not mean authority to create its own mission.
+But autonomy is permission to follow a durable work contract, not permission to invent one.
 
 Use:
 
@@ -431,4 +468,8 @@ or
 EXPLICIT [AGENT-READY] ISSUE
 ```
 
-Otherwise stop and report that no assigned work is available.
+Otherwise:
+
+```text
+STOP_WITH_NO_ASSIGNED_WORK
+```
