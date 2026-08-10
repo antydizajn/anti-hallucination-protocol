@@ -71,6 +71,7 @@ Historical development branch lineage marker:
 
 ```text
 external-contributor-v1
+HISTORICAL merged development branch
 ```
 
 Observed merge commits:
