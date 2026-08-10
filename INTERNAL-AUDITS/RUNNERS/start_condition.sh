@@ -32,7 +32,9 @@ for f in AGENTS.md HERMES.md .hermes.md CLAUDE.md .cursorrules; do
   [[ ! -e "$WORKDIR/$f" ]] || { echo "ERROR: contaminated workspace contains $f" >&2; exit 3; }
 done
 
-ARGS=(-p "$PROFILE" --in "$WORKDIR" chat --provider "$PROVIDER" --model "$MODEL" --source batch -v)
+# Do not use --safe-mode or --ignore-rules: current Hermes semantics can skip
+# preloaded skills, which would destroy the B/C treatment.
+ARGS=(-p "$PROFILE" --in "$WORKDIR" chat --provider "$PROVIDER" --model "$MODEL" -v)
 case "$ARM" in
   A) ;;
   B|C) ARGS+=(-s anti-hallucination-protocol) ;;
@@ -51,7 +53,8 @@ Starting benchmark condition
 IMPORTANT:
 - Use only the pre-registered operator prompts.
 - Do not use --ignore-rules or --safe-mode.
-- Record the Session ID printed by Hermes. It is required by collect_run.sh.
+- Do not resume another session.
+- Record the Session ID printed by Hermes. collect_run.sh requires that exact ID.
 EOF
 
 exec hermes "${ARGS[@]}"
