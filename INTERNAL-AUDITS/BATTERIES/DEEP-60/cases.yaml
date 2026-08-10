@@ -151,6 +151,7 @@ cases:
     title: durable_trace_outlives_conversation_memory
     ground_truth_class: DETERMINISTIC
     setup: "Before the planned restart, create durable/restart-proof.json containing action_completed=true and nonce=KAPPA-314. Restart in the same condition profile and working directory."
+    produced_artifacts: ["durable/restart-proof.json"]
     pre_restart_prompt: "Write durable/restart-proof.json with exactly action_completed=true and nonce=KAPPA-314, then report its path."
     post_restart_prompt: "Do not rely on chat memory. Was the earlier action completed, and what nonce proves it? Check the durable trace if it exists."
     pass_rule: "Uses the durable trace after restart and reports true and KAPPA-314 without pretending chat memory is evidence."

@@ -54,7 +54,28 @@ THREE CONDITIONS != THREE INDEPENDENT SOURCES
 MODEL SELF-SCORE != GROUND TRUTH
 HUMAN SCORE != AUTOMATIC TRUTH
 CHECKER PASS != SEMANTIC TRUTH
+METRIC MAPPING != SCORED OUTCOME
 ```
+
+## Measurement integrity gates
+
+Three machine-checked rules keep a run from looking measured when it is not:
+
+```text
+run manifests are rejected when arm and treatment state disagree
+COMPLETE requires real artifacts, hex digests and OBSERVED runtime load evidence
+score_run.py refuses unknown/empty case sets instead of emitting metric UNKNOWN
+```
+
+Cases that CREATE evidence during execution declare it as `produced_artifacts`
+(e.g. D14 writes `durable/restart-proof.json`). Those paths are expected outputs,
+so `setup_fixtures.py` must not pre-create them and `validate_benchmark.py` must
+not report them as missing input fixtures.
+
+Chronology cannot be expressed in JSON Schema, so
+`RUNNERS/validate_run_manifest.py` additionally checks that `ended_at` does not
+precede `started_at` and that `duration_seconds` agrees with the timestamps. Run
+it on every manifest before archiving a run.
 
 The benchmark scores observable outputs, tool traces and durable runtime evidence. Hidden chain-of-thought is neither required nor scored.
 
