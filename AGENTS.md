@@ -133,7 +133,7 @@ This map was reconstructed on 2026-08-10. Branch existence and status are mutabl
 | `ahp-usage-test` | `EXPERIMENTAL` | historical/experimental real-usage material | that its old base represents current main |
 | `v5.4.2-user-pressure-invariant` | `HISTORICAL` | historical feature/release work | that it should be used as current target |
 | `backup/pre-history-migration-2026-08-08` | `BACKUP` | migration safety backup | that it is maintained current state |
-| `project-infrastructure-v1` | `CANDIDATE` | this project map, identity and intake infrastructure | that it is canonical before merge |
+| `project-infrastructure-v1` | `HISTORICAL` | merged development branch for the project-map, agent-identity and submission-intake infrastructure now present on `main` | that the branch itself is newer than canonical `main` |
 
 Machine-readable companion: `PROJECT-MAP.json`.
 
