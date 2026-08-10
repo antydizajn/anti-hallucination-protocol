@@ -85,12 +85,13 @@ def test_submission_triage_workflow_is_non_executing_and_deduplicated():
     assert not any(token in text for token in forbidden)
 
 
-def test_handoff_records_new_control_plane_without_claiming_merge():
+def test_handoff_records_autonomous_control_plane_as_merged():
     text = (ROOT / "PROJECT-HANDOFF.md").read_text(encoding="utf-8")
-    assert "autonomous-control-plane-v1" in text
-    assert "Until merged, these are candidate infrastructure" in text
-    assert "GitHub Issues = LIVE OPERATIONAL WORK LEDGER" in text
+    assert "PR #9 - autonomous one-link control plane" in text
+    assert "8169b8d5cc3465ca56812b3aa6d2315c7032a075" in text
+    assert "GitHub Issues = live operational work ledger" in text
     assert "CI PASS != BEHAVIORAL EFFECTIVENESS" in text
+    assert "Until merged, these are candidate infrastructure" not in text
 
 
 def test_project_map_has_repo_url_only_entrypoint():
