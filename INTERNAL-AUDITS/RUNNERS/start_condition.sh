@@ -16,11 +16,11 @@ REP="$1"; ARM="$2"; PROVIDER="$3"; MODEL="$4"
 [[ "$ARM" =~ ^[ABC]$ ]] || { echo "ERROR: arm must be A, B, or C" >&2; exit 64; }
 
 BENCH_HOME="${AHP_BENCH_HOME:-$HOME/ahp-benchmark-v01}"
-WORKDIR="$BENCH_HOME/work/$REP"
+WORKDIR="$BENCH_HOME/work/$REP/$ARM"
 PROFILE="ahpbench-${REP}-$(tr 'ABC' 'abc' <<<"$ARM")"
 
 [[ -d "$WORKDIR/fixtures" ]] || {
-  echo "ERROR: fixtures missing. Run setup_fixtures.py $WORKDIR" >&2
+  echo "ERROR: fixtures missing for arm $ARM. Run prepare_workspaces.sh $REP" >&2
   exit 2
 }
 hermes profile show "$PROFILE" >/dev/null 2>&1 || {
