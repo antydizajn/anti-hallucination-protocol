@@ -1,0 +1,146 @@
+schema_version: 1.0.0
+checked: 2026-08-10
+branch: benchmark-research-v1
+purpose: broad_landscape_for_primary_source_triage
+defaults:
+  status: CANDIDATE_PENDING_PRIMARY_REVIEW
+  role: LANDSCAPE_ONLY
+  runner_allowed: false
+  primary_source: null
+promotion_requires: [primary_source_review, construct_mapping, scorer_mapping, exposure_classification, access_and_license_review]
+entry_count: 134
+entries:
+  - {id: "truthfulqa", name: "TruthfulQA", family: "PARAMETRIC_KNOWLEDGE", instrument_type: "benchmark"}
+  - {id: "popqa", name: "PopQA", family: "PARAMETRIC_KNOWLEDGE", instrument_type: "dataset"}
+  - {id: "triviaqa", name: "TriviaQA", family: "PARAMETRIC_KNOWLEDGE", instrument_type: "dataset"}
+  - {id: "natural-questions", name: "Natural Questions", family: "PARAMETRIC_KNOWLEDGE", instrument_type: "dataset"}
+  - {id: "webquestions", name: "WebQuestions", family: "PARAMETRIC_KNOWLEDGE", instrument_type: "dataset"}
+  - {id: "squad", name: "SQuAD", family: "GROUNDING", instrument_type: "dataset"}
+  - {id: "squad2", name: "SQuAD 2.0", family: "EPISTEMIC_BOUNDARY", instrument_type: "dataset"}
+  - {id: "hotpotqa", name: "HotpotQA", family: "MULTI_HOP_GROUNDING", instrument_type: "dataset"}
+  - {id: "musique", name: "MuSiQue", family: "MULTI_HOP_GROUNDING", instrument_type: "dataset"}
+  - {id: "2wikimultihopqa", name: "2WikiMultiHopQA", family: "MULTI_HOP_GROUNDING", instrument_type: "dataset"}
+  - {id: "strategyqa", name: "StrategyQA", family: "REASONING", instrument_type: "dataset"}
+  - {id: "ambigqa", name: "AmbigQA", family: "EPISTEMIC_BOUNDARY", instrument_type: "dataset"}
+  - {id: "asqa", name: "ASQA", family: "LONG_FORM", instrument_type: "benchmark"}
+  - {id: "eli5", name: "ELI5", family: "LONG_FORM", instrument_type: "dataset"}
+  - {id: "arc-challenge", name: "ARC-Challenge", family: "PARAMETRIC_KNOWLEDGE", instrument_type: "benchmark"}
+  - {id: "openbookqa", name: "OpenBookQA", family: "GROUNDING", instrument_type: "dataset"}
+  - {id: "commonsenseqa", name: "CommonsenseQA", family: "PARAMETRIC_KNOWLEDGE", instrument_type: "dataset"}
+  - {id: "mmlu", name: "MMLU", family: "GENERAL_KNOWLEDGE_GUARDRAIL", instrument_type: "benchmark"}
+  - {id: "mmlu-pro", name: "MMLU-Pro", family: "GENERAL_KNOWLEDGE_GUARDRAIL", instrument_type: "benchmark"}
+  - {id: "gpqa", name: "GPQA", family: "GENERAL_KNOWLEDGE_GUARDRAIL", instrument_type: "benchmark"}
+  - {id: "big-bench-hard", name: "BIG-Bench Hard", family: "REASONING_GUARDRAIL", instrument_type: "benchmark"}
+  - {id: "freshqa", name: "FreshQA", family: "TEMPORAL_AND_SEARCH", instrument_type: "benchmark"}
+  - {id: "livebench", name: "LiveBench", family: "DYNAMIC_GENERAL", instrument_type: "benchmark"}
+  - {id: "selfaware", name: "SelfAware", family: "EPISTEMIC_BOUNDARY", instrument_type: "benchmark"}
+  - {id: "fever", name: "FEVER", family: "EVIDENCE_VERIFICATION", instrument_type: "dataset"}
+  - {id: "feverous", name: "FEVEROUS", family: "EVIDENCE_VERIFICATION", instrument_type: "dataset"}
+  - {id: "hover", name: "HoVer", family: "EVIDENCE_VERIFICATION", instrument_type: "dataset"}
+  - {id: "vitaminc", name: "VitaminC", family: "EVIDENCE_VERIFICATION", instrument_type: "dataset"}
+  - {id: "scifact", name: "SciFact", family: "EVIDENCE_VERIFICATION", instrument_type: "dataset"}
+  - {id: "climate-fever", name: "Climate-FEVER", family: "EVIDENCE_VERIFICATION", instrument_type: "dataset"}
+  - {id: "kilt", name: "KILT", family: "RETRIEVAL_GROUNDING", instrument_type: "benchmark"}
+  - {id: "factcc", name: "FactCC", family: "EVALUATOR", instrument_type: "metric_dataset"}
+  - {id: "qags", name: "QAGS", family: "EVALUATOR", instrument_type: "metric"}
+  - {id: "qafacteval", name: "QAFactEval", family: "EVALUATOR", instrument_type: "metric"}
+  - {id: "summac", name: "SummaC", family: "EVALUATOR", instrument_type: "benchmark_metric"}
+  - {id: "true", name: "TRUE", family: "EVALUATOR", instrument_type: "meta_benchmark"}
+  - {id: "frank", name: "FRANK", family: "EVALUATOR", instrument_type: "dataset"}
+  - {id: "summeval", name: "SummEval", family: "EVALUATOR", instrument_type: "dataset"}
+  - {id: "cogensumm", name: "CoGenSumm", family: "EVALUATOR", instrument_type: "dataset"}
+  - {id: "questeval", name: "QuestEval", family: "EVALUATOR", instrument_type: "metric"}
+  - {id: "dae", name: "DAE", family: "EVALUATOR", instrument_type: "metric"}
+  - {id: "fib", name: "FIB", family: "EVALUATOR", instrument_type: "benchmark"}
+  - {id: "summfc", name: "SummFC", family: "EVALUATOR", instrument_type: "dataset"}
+  - {id: "faithbench", name: "FaithBench", family: "EVALUATOR", instrument_type: "benchmark"}
+  - {id: "llm-aggrefact", name: "LLM-AggreFact", family: "EVALUATOR", instrument_type: "meta_benchmark"}
+  - {id: "minicheck", name: "MiniCheck", family: "EVALUATOR", instrument_type: "evaluator"}
+  - {id: "alignscore", name: "AlignScore", family: "EVALUATOR", instrument_type: "metric"}
+  - {id: "bartscore", name: "BARTScore", family: "EVALUATOR", instrument_type: "metric"}
+  - {id: "bertscore", name: "BERTScore", family: "EVALUATOR", instrument_type: "metric"}
+  - {id: "bleurt", name: "BLEURT", family: "EVALUATOR", instrument_type: "metric"}
+  - {id: "ragas", name: "RAGAS", family: "RAG_EVALUATION", instrument_type: "framework"}
+  - {id: "ragchecker", name: "RAGChecker", family: "RAG_EVALUATION", instrument_type: "framework"}
+  - {id: "ares", name: "ARES", family: "RAG_EVALUATION", instrument_type: "framework"}
+  - {id: "rgb", name: "RGB", family: "RAG_ROBUSTNESS", instrument_type: "benchmark"}
+  - {id: "ragbench", name: "RAGBench", family: "RAG_EVALUATION", instrument_type: "benchmark"}
+  - {id: "ragchecker-benchmark", name: "RAGChecker benchmark", family: "RAG_EVALUATION", instrument_type: "benchmark"}
+  - {id: "ragtruth-candidate", name: "RAGTruth corpus", family: "EVALUATOR", instrument_type: "dataset"}
+  - {id: "trivia-plus-candidate", name: "TRIVIA+", family: "EVALUATOR", instrument_type: "benchmark"}
+  - {id: "ragas-faithfulness", name: "RAGAS Faithfulness", family: "EVALUATOR", instrument_type: "metric"}
+  - {id: "deepval", name: "DeepEval Faithfulness", family: "EVALUATOR", instrument_type: "metric"}
+  - {id: "qampari", name: "QAMPARI", family: "CITATION_AND_COVERAGE", instrument_type: "dataset"}
+  - {id: "qampari-alce", name: "QAMPARI in ALCE", family: "CITATION", instrument_type: "evaluation_slice"}
+  - {id: "eli5-alce", name: "ELI5 in ALCE", family: "CITATION", instrument_type: "evaluation_slice"}
+  - {id: "asqa-alce", name: "ASQA in ALCE", family: "CITATION", instrument_type: "evaluation_slice"}
+  - {id: "longbench", name: "LongBench", family: "LONG_CONTEXT", instrument_type: "benchmark"}
+  - {id: "longbench-v2", name: "LongBench v2", family: "LONG_CONTEXT", instrument_type: "benchmark"}
+  - {id: "ruler", name: "RULER", family: "LONG_CONTEXT", instrument_type: "benchmark"}
+  - {id: "babilong", name: "BABILong", family: "LONG_CONTEXT", instrument_type: "benchmark"}
+  - {id: "needle-in-haystack", name: "Needle-in-a-Haystack", family: "LONG_CONTEXT", instrument_type: "test"}
+  - {id: "needlebench", name: "NeedleBench", family: "LONG_CONTEXT", instrument_type: "benchmark"}
+  - {id: "infinitebench", name: "InfiniteBench", family: "LONG_CONTEXT", instrument_type: "benchmark"}
+  - {id: "loogle", name: "LooGLE", family: "LONG_CONTEXT", instrument_type: "benchmark"}
+  - {id: "longgenbench-wu", name: "LongGenBench (Wu et al.)", family: "LONG_CONTEXT_GENERATION", instrument_type: "benchmark"}
+  - {id: "longgenbench-liu", name: "LongGenBench (Liu et al.)", family: "LONG_CONTEXT_GENERATION", instrument_type: "benchmark"}
+  - {id: "longwriter-bench", name: "LongWriter-bench", family: "LONG_CONTEXT_GENERATION", instrument_type: "benchmark"}
+  - {id: "zero-scrolls", name: "ZeroSCROLLS", family: "LONG_CONTEXT", instrument_type: "benchmark"}
+  - {id: "scrolls", name: "SCROLLS", family: "LONG_CONTEXT", instrument_type: "benchmark"}
+  - {id: "longeval", name: "LongEval", family: "LONG_CONTEXT", instrument_type: "benchmark"}
+  - {id: "lost-in-middle", name: "Lost in the Middle", family: "LONG_CONTEXT", instrument_type: "evaluation_protocol"}
+  - {id: "gaia", name: "GAIA", family: "AGENT_GENERAL", instrument_type: "benchmark"}
+  - {id: "agentbench", name: "AgentBench", family: "AGENT_GENERAL", instrument_type: "benchmark"}
+  - {id: "webarena", name: "WebArena", family: "AGENT_GENERAL", instrument_type: "environment"}
+  - {id: "visualwebarena", name: "VisualWebArena", family: "AGENT_GENERAL", instrument_type: "environment"}
+  - {id: "workarena", name: "WorkArena", family: "AGENT_GENERAL", instrument_type: "environment"}
+  - {id: "browsergym", name: "BrowserGym", family: "AGENT_GENERAL", instrument_type: "environment"}
+  - {id: "webshop", name: "WebShop", family: "AGENT_GENERAL", instrument_type: "environment"}
+  - {id: "osworld", name: "OSWorld", family: "AGENT_GENERAL", instrument_type: "environment"}
+  - {id: "swe-bench", name: "SWE-bench", family: "AGENT_GENERAL", instrument_type: "benchmark"}
+  - {id: "swe-bench-verified", name: "SWE-bench Verified", family: "AGENT_GENERAL", instrument_type: "benchmark"}
+  - {id: "toolbench", name: "ToolBench", family: "TOOL_USE", instrument_type: "benchmark"}
+  - {id: "api-bank", name: "API-Bank", family: "TOOL_USE", instrument_type: "benchmark"}
+  - {id: "bfcl", name: "Berkeley Function Calling Leaderboard", family: "TOOL_USE", instrument_type: "benchmark"}
+  - {id: "tau-bench", name: "τ-bench", family: "TOOL_USE", instrument_type: "benchmark"}
+  - {id: "tau2-bench", name: "τ²-bench", family: "TOOL_USE", instrument_type: "benchmark"}
+  - {id: "restbench", name: "RestBench", family: "TOOL_USE", instrument_type: "benchmark"}
+  - {id: "gorilla-api-bench", name: "Gorilla APIBench", family: "TOOL_USE", instrument_type: "benchmark"}
+  - {id: "toolalpaca", name: "ToolAlpaca", family: "TOOL_USE", instrument_type: "dataset"}
+  - {id: "toolqa", name: "ToolQA", family: "TOOL_USE", instrument_type: "benchmark"}
+  - {id: "mint", name: "MINT", family: "TOOL_USE", instrument_type: "benchmark"}
+  - {id: "agentboard", name: "AgentBoard", family: "AGENT_EVALUATION", instrument_type: "benchmark"}
+  - {id: "agenttrek", name: "AgentTrek", family: "AGENT_EVALUATION", instrument_type: "dataset"}
+  - {id: "intercode", name: "InterCode", family: "AGENT_GENERAL", instrument_type: "environment"}
+  - {id: "webcanvas", name: "WebCanvas", family: "AGENT_GENERAL", instrument_type: "benchmark"}
+  - {id: "browsecomp", name: "BrowseComp", family: "AGENT_SEARCH", instrument_type: "benchmark"}
+  - {id: "promptbench", name: "PromptBench", family: "PROMPT_ROBUSTNESS", instrument_type: "benchmark"}
+  - {id: "harmbench", name: "HarmBench", family: "SAFETY_GUARDRAIL", instrument_type: "benchmark"}
+  - {id: "jailbreakbench", name: "JailbreakBench", family: "SAFETY_GUARDRAIL", instrument_type: "benchmark"}
+  - {id: "agentharm", name: "AgentHarm", family: "AGENT_SECURITY", instrument_type: "benchmark"}
+  - {id: "calibration-error-benchmarks", name: "ECE calibration suites", family: "CALIBRATION", instrument_type: "evaluation_family"}
+  - {id: "brier-score-evals", name: "Brier-score QA evaluations", family: "CALIBRATION", instrument_type: "evaluation_family"}
+  - {id: "semantic-entropy-evals", name: "Semantic Entropy evaluations", family: "CALIBRATION", instrument_type: "evaluation_family"}
+  - {id: "p-true", name: "P(True) evaluations", family: "CALIBRATION", instrument_type: "evaluation_family"}
+  - {id: "faithdial", name: "FaithDial", family: "DIALOGUE_GROUNDING", instrument_type: "dataset"}
+  - {id: "dialfact", name: "DialFact", family: "DIALOGUE_FACTUALITY", instrument_type: "dataset"}
+  - {id: "wow", name: "Wizard of Wikipedia", family: "DIALOGUE_GROUNDING", instrument_type: "dataset"}
+  - {id: "topical-chat", name: "Topical-Chat", family: "DIALOGUE_GROUNDING", instrument_type: "dataset"}
+  - {id: "q2", name: "Q2 factual consistency", family: "EVALUATOR", instrument_type: "metric"}
+  - {id: "pubmedqa", name: "PubMedQA", family: "DOMAIN_KNOWLEDGE", instrument_type: "dataset"}
+  - {id: "medqa", name: "MedQA", family: "DOMAIN_KNOWLEDGE", instrument_type: "benchmark"}
+  - {id: "medmcqa", name: "MedMCQA", family: "DOMAIN_KNOWLEDGE", instrument_type: "benchmark"}
+  - {id: "healthsearchqa", name: "HealthSearchQA", family: "DOMAIN_KNOWLEDGE", instrument_type: "dataset"}
+  - {id: "legalbench", name: "LegalBench", family: "DOMAIN_KNOWLEDGE", instrument_type: "benchmark"}
+  - {id: "lexglue", name: "LexGLUE", family: "DOMAIN_KNOWLEDGE", instrument_type: "benchmark"}
+  - {id: "mmmu", name: "MMMU", family: "MULTIMODAL", instrument_type: "benchmark"}
+  - {id: "mmmu-pro", name: "MMMU-Pro", family: "MULTIMODAL", instrument_type: "benchmark"}
+  - {id: "mmbench", name: "MMBench", family: "MULTIMODAL", instrument_type: "benchmark"}
+  - {id: "mmvet", name: "MM-Vet", family: "MULTIMODAL", instrument_type: "benchmark"}
+  - {id: "hallusionbench", name: "HallusionBench", family: "MULTIMODAL_HALLUCINATION", instrument_type: "benchmark"}
+  - {id: "pope", name: "POPE", family: "MULTIMODAL_HALLUCINATION", instrument_type: "benchmark"}
+  - {id: "chair", name: "CHAIR", family: "MULTIMODAL_HALLUCINATION", instrument_type: "metric"}
+  - {id: "mme", name: "MME", family: "MULTIMODAL", instrument_type: "benchmark"}
+  - {id: "seed-bench", name: "SEED-Bench", family: "MULTIMODAL", instrument_type: "benchmark"}
+  - {id: "videomme", name: "Video-MME", family: "MULTIMODAL", instrument_type: "benchmark"}
+  - {id: "mvbench", name: "MVBench", family: "MULTIMODAL", instrument_type: "benchmark"}
