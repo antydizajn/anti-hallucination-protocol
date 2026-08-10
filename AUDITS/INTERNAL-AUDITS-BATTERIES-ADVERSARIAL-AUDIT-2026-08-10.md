@@ -174,6 +174,8 @@ Runbook ponadto nie wymusza explicit provider/model na command line, nie weryfik
 ### F-09 — P1 / STRUCTURAL: testy nadmiernie nagradzają ostrożne słownictwo i self-answering fixtures
 
 **Status:** EXECUTED + INFERRED.
+**Dowód obiektywny (answer leakage):** dwa niezależne liczniki dały rozbieżny wynik — podagent 20/65, mój niezależny licznik tokenów werdyktu 22/65, zgodność 17. Różnica dotyczy D18/D23/D28 (tylko podagent) oraz D08/D17/D21/D34/D50 (tylko mój licznik). Raportuję zatem przedział 20-22/65 z jawną rozbieżnością klasyfikacji, nie jedną liczbę.
+
 **Dowód obiektywny:** tylko 3/65 cases mają `unnecessary_abstention` lub są T0 negative controls (Q05, D13, D30); w timed-core tylko D13. 58/60 DEEP ma klasę DETERMINISTIC, 2 RUBRIC. 30/86 generator entries zawiera jawne pola typu `not_run`, `no_observation`, `confidence=low`, `feature_flag_enabled=false`, `execute_called=false`.
 
 **Dowód heurystyczny:** literalna, konserwatywna klasyfikacja pass rules wskazała, że czysta odpowiedź „nie mogę potwierdzić” może spełnić 28/65 puli i 6/15 timed-core. Ta liczba jest **INFERRED**, bo pass rules nie mają formalnej semantyki.
@@ -240,6 +242,79 @@ Po ominięciu niezależnego błędu D14 validator zwrócił `PASS: benchmark sta
 
 **Rekomendacja:** triplet ID + arm ID jako osobne pola albo wszędzie ten sam format.
 
+
+### F-16 — P2 / BUG: `tree_sha256` nie pokrywa finalnego drzewa fixtur (success envelope)
+
+**Status:** EXECUTED (potwierdzone własnym pomiarem po zgłoszeniu przez podagenta).
+**Dowód:** `setup_fixtures.py:120-130` liczy `tree_hash` z listy plików wejściowych i **dopiero potem** zapisuje `MANIFEST.json`, którego już nie obejmuje. Pomiar dwóch świeżych drzew:
+
+```text
+stdout tree_sha256          : bc371bc0df8c8307c1f45c3cb4659eb4b0f73e53f8282194f5d2064e5af9135d
+pełne drzewo z MANIFEST.json: 91f61078dc17dae985fe8fb1334c362a98fc5135b8784cd9865f1bb2d6f4e9ff
+```
+
+`prepare_workspaces.sh:17-21` porównuje wyłącznie stdout, więc komunikat `PASS: identical fixture trees` dowodzi identyczności podzbioru, nie finalnego stanu. Dziś treść jest deterministyczna, więc ramiona są faktycznie równe; ryzyko jest strukturalne przy każdej przyszłej zmianie metadanych generatora.
+
+**Rekomendacja:** liczyć i porównywać hash finalnego drzewa po zapisaniu manifestu, albo porównywać drzewa bezpośrednio.
+
+**Ryzyko regresji:** zmiana wartości `tree_sha256` unieważni porównania z wcześniejszymi manifestami — wymaga bumpa `schema_version` fixtur.
+
+### F-17 — P1 / BUG: checksum-podobne pola nie mają formatu, a `INVALID` nie wymaga powodu
+
+**Status:** EXECUTED.
+**Dowód:** pojedynczy manifest zawierający jednocześnie `disposition=INVALID` z `invalidation_reasons: []`, `fixtures.tree_sha256="not-a-sha"`, `artifacts.transcript.sha256="zzz"` oraz CONTROL z `discoverable=true`, `preload_requested=true`, `runtime_load_evidence=OBSERVED` przeszedł walidację jako SCHEMA_VALID (`run-manifest.schema.json:32,102-135`).
+
+**Konsekwencja:** pola nazwane jak dowody kryptograficzne nie są dowodami; bieg oznaczony jako nieważny nie musi podawać przyczyny, co psuje wymóg „preserve invalid runs” z designu.
+
+**Rekomendacja:** `pattern: ^[0-9a-f]{64}$` dla wszystkich sha256; `minItems: 1` dla `invalidation_reasons` gdy `disposition != COMPLETE`; wymuszenie ABSENT/false dla CONTROL.
+
+### F-18 — P2 / BUG: `score_run.py` nadpisuje `scores.json` bez ostrzeżenia
+
+**Status:** EXECUTED.
+**Dowód:** plik `scores.json` z treścią `SENTINEL` został po ponownym uruchomieniu bezwarunkowo zastąpiony (`score_run.py:48`); `grep -c SENTINEL` = 0.
+
+**Konsekwencja:** ponowne uruchomienie na tym samym katalogu niszczy poprzedni wynik adjudykacji bez śladu — w benchmarku, którego INDEX zabrania reużywania run ID.
+
+**Rekomendacja:** obowiązkowy `--output` albo odmowa nadpisania bez `--force`.
+
+### F-19 — P1 / CONFOUND: `.env` profilu default jest kopiowany bez whitelisty i bez hashowania
+
+**Status:** OBSERVED.
+**Dowód:** `bootstrap_profiles.sh:46,61`: `DEFAULT_ENV="$(hermes -p default config env-path)"` oraz `[[ -f "$DEFAULT_ENV" ]] && cp "$DEFAULT_ENV" "$ENVF"`. Skrypt świadomie nie klonuje configu (dobra decyzja, komentarz `:58-60`), ale kopiuje cały plik sekretów bez filtrowania, bez zapisu hasha i bez porównania między ramionami.
+
+**Konsekwencja:** dowolna zmienna z `.env` (routing, feature flags, provider overrides, memory backend) wchodzi do wszystkich ramion jako niezmierzony wspólny czynnik, a jej zmiana w czasie łamie odtwarzalność między repetycjami.
+
+**Rekomendacja:** generować benchmarkowy `.env` z jawnej whitelisty; zapisywać listę kluczy i hash w manifeście; przerwać bieg przy różnicy między ramionami.
+
+### F-20 — P2 / BUG: cichy `|| true` przy usuwaniu `skills.external_dirs`
+
+**Status:** OBSERVED.
+**Dowód:** `bootstrap_profiles.sh:69`: `hermes -p "$p" config unset skills.external_dirs >/dev/null 2>&1 || true`.
+
+**Konsekwencja:** jeśli operacja się nie uda, skrypt kończy się sukcesem, a profil może dalej widzieć zewnętrzne skille — czyli dokładnie ten confounder, który ta linia miała usunąć.
+
+**Rekomendacja:** po `unset` odczytać wartość i przerwać, gdy klucz nadal istnieje; usunąć `|| true`.
+
+### F-21 — P2 / STRUCTURAL: `cleanup_profiles.sh` usuwa po nazwie, bez markera własności
+
+**Status:** OBSERVED.
+**Dowód:** `cleanup_profiles.sh:13-17` kasuje `ahpbench-<rep>-{a,b,c}` wyłącznie na podstawie nazwy. `bootstrap_profiles.sh:38-44` odmawia utworzenia przy kolizji, ale nie zapisuje żadnego znacznika, po którym cleanup mógłby rozpoznać własny profil.
+
+**Konsekwencja:** przy kolizji nazw cleanup może usunąć profil użytkownika utworzony poza benchmarkiem.
+
+**Rekomendacja:** zapisywać `benchmark-owner.json` (rep, data, repo SHA) przy tworzeniu i usuwać wyłącznie profile z poprawnym markerem.
+
+### F-22 — P1 / CONFOUND: brak dowodu runtime-load i brak asercji „AHP nieaktywne” dla CONTROL
+
+**Status:** OBSERVED (finding podagenta; domknięty przeze mnie lekturą kodu, nie interaktywnym runem).
+**Dowód:** `install_frozen_ahp.sh:85-95` sprawdza wyłącznie widoczność w listingu i sam to przyznaje: `NOTE=DISCOVERABLE_IS_NOT_LOADED`. `start_condition.sh:38-41` różnicuje ramiona jedynie przez dodanie `-s anti-hallucination-protocol`. Schema dopuszcza `runtime_load_evidence=UNKNOWN` (F-04).
+
+**Konsekwencja:** benchmark, którego głównym twierdzeniem jest INSTALLED != LOADED, nie posiada maszynowego dowodu LOADED dla B/C ani dowodu NOT LOADED dla A.
+
+**Rekomendacja:** po starcie każdego ramienia wykonać nieinteraktywną sondę i wyekstrahować z eksportu sesji dowód obecności/nieobecności skilla; ustawić `runtime_load_evidence=OBSERVED` wyłącznie na podstawie tego artefaktu.
+
+**Ryzyko regresji:** sonda sama wchodzi do transcriptu, więc musi być identyczna we wszystkich ramionach i wykluczona ze scoringu.
+
 ## 5. Coverage gaps
 
 ### 5.1 Luki zaniedbania (wykonalne w obecnym designie)
@@ -292,6 +367,12 @@ Przykłady:
 - D58: fixture mówi `confidence=low`, `reproduced=false`, `reachability_evidence=false`.
 
 To są dobre **unit fixtures reguły językowej**, lecz słabe benchmarki dyspozycji. Wadliwy system z regułą „negate when field name starts with no/not/false” przejdzie.
+
+### 6.1b Redundancja: 60 case'ow nie znaczy 60 wlasnosci
+
+**Status:** EXECUTED + INFERRED. Obiektywny proxy: 19 rodzin i 28 unikalnych kombinacji metryk na 65 case'ow. Największe skupienia: 6x `citation_entailment_error+false_support`, 6x `false_support+inappropriate_certainty`, 5x `false_support+fresh_evidence_binding`, 5x `completion_overclaim+false_support`. Niezależne grupowanie merytoryczne podagenta dało ok. 13 realnie unikalnych własności. Wniosek: pula testuje kilkanaście własności w wielu wariantach powierzchniowych, co jest zaletą dla surface generalization, ale zawyża postrzegane pokrycie i przy braku wag zaburza agregację metryk.
+
+**Rekomendacja:** jawne pole `property_id` w każdym case; raportować pokrycie per property, nie per case; wagi metryk uwzględniające liczbę wariantów.
 
 ### 6.2 Overfitting do implementacji AHP
 
