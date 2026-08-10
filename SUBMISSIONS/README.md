@@ -1,8 +1,8 @@
 # External audit, test and reproducer intake
 
-This is the preferred machine-friendly route for sending new external evidence to the project.
+This is the preferred machine-friendly route for sending new external evidence to AHP.
 
-A submission being accepted by the intake validator means only:
+Successful intake means only:
 
 ```text
 STRUCTURALLY_VALID_SUBMISSION
@@ -18,22 +18,52 @@ patch required
 bug fixed
 ```
 
-## Preferred route - pull request
+## Fastest path for an external agent with no write access
 
-Create a unique directory:
+Do not ask for collaborator `Write`.
+
+```bash
+gh repo clone antydizajn/anti-hallucination-protocol
+cd anti-hallucination-protocol
+python3 scripts/external_contributor.py start
+# perform the selected [AGENT-READY] task
+python3 scripts/external_contributor.py submit
+```
+
+See `EXTERNAL-CONTRIBUTOR.md` for the complete zero-write flow.
+
+The helper can:
+
+- detect that upstream push is unavailable;
+- create/reuse the contributor's fork;
+- discover `[AGENT-READY]` work;
+- resolve the exact inspection target;
+- keep audit target and PR delivery base separate;
+- scaffold the submission directory;
+- calculate artifact SHA-256 values;
+- run this repository's intake validator locally;
+- push only to the contributor's fork;
+- create an upstream Pull Request and verify the returned PR URL.
+
+For audit/test/reproducer tasks, the canonical directory is:
 
 ```text
 SUBMISSIONS/INBOX/<submission-id>/
 ```
 
-Minimum:
+Typical contents:
 
 ```text
 manifest.json
 REPORT.md
+FINDINGS.json       # when applicable
+COMPLETION.json     # when applicable
+attachments/        # optional
 ```
 
-Additional attachments/reproducers are allowed as declared artifacts. Do not require the project to execute them during intake.
+## Manual route
+
+If not using the helper, create a unique directory under `SUBMISSIONS/INBOX/` and open a Pull Request to `main` containing the submission.
 
 Suggested ID:
 
@@ -41,64 +71,21 @@ Suggested ID:
 SUB-YYYYMMDD-<short-source>-<random-or-sequence>
 ```
 
-Example:
+The manifest schema is `ahp-external-submission-v1` and records:
 
-```text
-SUB-20260810-opus5-a1b2
-```
+- `submission_id`;
+- `submission_type`;
+- `submitted_at`;
+- submitter metadata;
+- executor metadata;
+- exact target repository/ref/commit where known;
+- methodology identity where applicable;
+- whether execution actually occurred;
+- declared artifacts and SHA-256 values;
+- declared findings;
+- correlation hints.
 
-Then open a pull request to `main` containing only the submission unless a maintainer explicitly requests other changes.
-
-The PR intake workflow validates the submission structure and hashes. It deliberately does not execute submitted scripts or binaries.
-
-## Manifest
-
-Example:
-
-```json
-{
-  "schema": "ahp-external-submission-v1",
-  "submission_id": "SUB-20260810-opus5-a1b2",
-  "submission_type": "FORENSIC_AUDIT",
-  "submitted_at": "2026-08-10T03:00:00+02:00",
-  "submitter": {
-    "type": "HUMAN",
-    "name": "external collaborator"
-  },
-  "executor": {
-    "type": "AGENT",
-    "model": "Claude Opus 5",
-    "provider_runtime": "UNKNOWN"
-  },
-  "target": {
-    "repository": "https://github.com/antydizajn/anti-hallucination-protocol",
-    "ref": "main",
-    "commit": "UNKNOWN"
-  },
-  "methodology": {
-    "name": "UNKNOWN",
-    "version": "UNKNOWN",
-    "commit": "UNKNOWN"
-  },
-  "execution_occurred": true,
-  "artifacts": [
-    {
-      "path": "REPORT.md",
-      "sha256": "<64 lowercase hex chars or UNKNOWN>"
-    }
-  ],
-  "declared_findings": [
-    {
-      "id": "F-001",
-      "severity": "P2",
-      "title": "example"
-    }
-  ],
-  "correlation_hints": [
-    "shared canonical prompt with other agents"
-  ]
-}
-```
+Use `UNKNOWN` for facts you cannot establish. Do not invent a model identity, provider, digest, independence claim or execution state merely to satisfy a schema.
 
 ## Allowed submission types
 
@@ -112,41 +99,41 @@ DOCUMENT_REVIEW
 OTHER
 ```
 
-## Hashes
+## Local validation
 
-If you know exact artifact bytes, provide lowercase SHA-256.
+Run:
 
-If you do not, use:
-
-```text
-UNKNOWN
+```bash
+python3 scripts/check_external_submission.py --root SUBMISSIONS/INBOX
 ```
 
-Do not fabricate a digest merely to satisfy the manifest.
+or let `scripts/external_contributor.py submit` run it automatically.
 
-The validator recomputes every declared non-UNKNOWN hash.
+A passing result means only structural validity.
 
 ## Reproducers and executable files
 
-You may submit a reproducer as an artifact, but the intake workflow does not execute it.
-
-This is deliberate:
+You may submit reproducer code as an artifact, but generic intake does not execute it.
 
 ```text
 RECEIVED CODE != SAFE TO EXECUTE
 ```
 
-Execution happens only in a separate, authorized reproduction phase in a disposable environment.
+Execution belongs to a separately authorized reproduction phase in a disposable environment.
+
+## Fork Pull Request security
+
+External submissions use normal `pull_request` CI with minimal/read-only permissions where possible.
+
+Do not change the external intake path to privileged `pull_request_target` merely to access secrets or write credentials.
+
+Fork PRs must not receive maintainer secrets merely because they contain a valid manifest.
 
 ## Human-friendly route
 
-If you do not want to prepare JSON, open the repository issue form:
+If preparing JSON is undesirable, use the repository Issue Form `External audit / test submission`.
 
-```text
-External audit / test submission
-```
-
-Maintainers may later normalize that report into a machine-readable submission. The normalized record must preserve that it was normalized and must not pretend to be byte-identical raw evidence unless verified.
+Maintainers may later normalize that material into a machine-readable submission. Normalization is not byte-identical archival evidence unless exact source bytes were preserved and verified.
 
 ## Project-side lifecycle
 

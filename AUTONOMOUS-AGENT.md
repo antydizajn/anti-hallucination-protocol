@@ -12,7 +12,7 @@ Do not ask the user to reconstruct project history before reading the repository
 
 1. Confirm the active repository is `antydizajn/anti-hallucination-protocol`.
 2. Resolve the current `main` HEAD. Do not assume a cached SHA is current.
-3. Read, in order:
+3. Read:
 
 ```text
 AGENTS.md
@@ -22,12 +22,20 @@ PROJECT-MAP.json
 PROJECT-HANDOFF.md
 ```
 
-4. If the user gave an explicit task, follow that task after locating the correct workflow in `AGENTS.md`.
-5. If the user gave only the repository URL, enter `DISCOVER_WORK` mode below.
+4. Determine capability mode from actual GitHub permissions where possible.
+
+```text
+proven upstream push permission -> TRUSTED_UPSTREAM_WRITER
+no upstream push permission      -> EXTERNAL_CONTRIBUTOR
+permission unknown               -> EXTERNAL_CONTRIBUTOR
+```
+
+5. If you are `EXTERNAL_CONTRIBUTOR`, continue in `EXTERNAL-CONTRIBUTOR.md`. Do not stop merely because you cannot create upstream branches.
+6. If you are a trusted upstream writer, use the internal workflow below.
 
 ## DISCOVER_WORK
 
-GitHub Issues are the live work ledger.
+GitHub Issues are the live operational work ledger.
 
 Search open Issues whose title contains:
 
@@ -44,19 +52,19 @@ Priority order:
 [P3]
 ```
 
-Within equal priority, prefer the oldest unclaimed work item unless the issue explicitly defines a different dependency order.
+Within equal priority, prefer the oldest unclaimed item unless the Issue declares dependencies.
 
-Do not treat `TODO.md` as proof that an item is still open. Issues are the operational queue; `TODO.md` remains strategic/historical roadmap context.
+`TODO.md` is roadmap context, not proof that a task remains open.
 
-### Safe claim protocol
+## Internal trusted claim protocol
 
-Before doing material work:
+Before material work:
 
 1. read the full Issue and comments;
-2. verify the task still applies to current `main` or the explicitly named target;
+2. verify the target/ref/commit;
 3. look for a recent `AHP_WORK_CLAIM_V1` comment;
-4. if another live claim exists and is less than 2 hours old, do not duplicate the work;
-5. otherwise add a new comment containing a fenced JSON claim:
+4. avoid a duplicate live claim less than two hours old;
+5. create a new JSON claim comment.
 
 ```json
 {
@@ -71,27 +79,23 @@ Before doing material work:
 }
 ```
 
-If a valid signed identity is actually provisioned under `AGENT-IDENTITY/`, the claim may use `KEY_BOUND_IDENTITY` only after signature verification succeeds. Never upgrade assurance because the agent says it owns a key.
+Use `KEY_BOUND_IDENTITY` only after a real signature verifies against a non-revoked registered key.
 
-If you cannot write an Issue comment or branch, do not claim the task. Report `NO_WRITE_CAPABILITY`.
+For an external contributor, lack of branch write access is normal. Use `EXTERNAL-CONTRIBUTOR.md` instead of reporting `NO_WRITE_CAPABILITY`.
 
-## Work branch
+## Internal work branch
 
-For code, documentation, methodology or deterministic-test changes, work on a dedicated branch from the exact intended base.
-
-Default:
+Default trusted branch:
 
 ```text
 agent/<agent-id>/issue-<number>-<short-slug>
 ```
 
-Do not write directly to `main`.
+Do not write ordinary work directly to `main`.
 
-External-audit evidence, agent-bus traffic and dedicated submission workspaces have their own branch/path contracts. Follow `AGENTS.md` rather than forcing them through a normal code branch.
+External contributors use branches in their own forks. External agents do not need `agent-bus` write access.
 
 ## Role routing
-
-Classify the work before acting:
 
 ```text
 FORENSIC_AUDIT      -> fresh auditor methodology; preserve blind phase
@@ -104,19 +108,20 @@ REPOSITORY_OPS      -> branch/CI/protection/release mechanics
 DOCUMENTATION       -> docs only unless evidence requires code changes
 ```
 
-Repository-level GitHub Copilot custom agent profiles live under `.github/agents/` when available. A non-Copilot agent should still follow the same role boundaries.
+Repository custom-agent profiles live under `.github/agents/` when supported. Other agents should follow the same role boundaries manually.
 
 ## Mandatory evidence boundaries
 
-Never collapse:
-
 ```text
+PUBLIC REPO != WRITE ACCESS
+FORK != UPSTREAM MODIFICATION
+PR OPEN != CHANGE ACCEPTED
 ISSUE OPEN != FINDING TRUE
 AGENT ASSIGNED != AGENT CORRECT
 SIGNED != TRUE
 RECEIVED != VERIFIED
 STRUCTURALLY_VALID_SUBMISSION != ACCEPTED_FINDING
-AUDITOR_REPRODUCED != PROJECT_REPRODUCED
+AUDITOR REPRODUCED != PROJECT REPRODUCED
 REPRODUCED != FIXED
 PATCHED != RELEASED
 GREEN TESTS != MODEL OBEDIENCE
@@ -125,9 +130,7 @@ CI PASS != BEHAVIORAL EFFECTIVENESS
 
 ## Completion
 
-A material task is not complete merely because a response was drafted.
-
-For change-producing tasks, prefer:
+For trusted change-producing tasks:
 
 ```text
 issue
@@ -140,33 +143,33 @@ issue
 -> durable handoff
 ```
 
-After opening a PR, add a final Issue comment containing:
+External contributors use:
 
-```json
-{
-  "schema": "AHP_WORK_HANDOFF_V1",
-  "issue": 123,
-  "agent_id": "<agent-id>",
-  "status": "PR_OPEN",
-  "target_commit": "<base SHA>",
-  "work_branch": "<branch>",
-  "pull_request": 456,
-  "evidence": ["<paths / run ids / reproducer refs>"],
-  "remaining_unknowns": []
-}
+```text
+issue
+-> best-effort claim
+-> fork
+-> contributor branch
+-> evidence/work
+-> local validation
+-> upstream Pull Request
 ```
 
-If no PR is appropriate, use `status` such as `REPORT_WRITTEN`, `REPRODUCED`, `BLOCKED`, or `NO_CHANGE_RECOMMENDED` and point to durable evidence.
+A material task is not complete merely because a response or command was prepared.
 
 ## Stop conditions
 
-Stop rather than invent work when any of these applies:
+Use explicit states rather than false completion:
 
 ```text
 STOP_WITH_NO_ASSIGNED_WORK
-NO_WRITE_CAPABILITY
+NO_GITHUB_AUTH
+NO_FORK_CAPABILITY
 TARGET_UNRESOLVED
 DEPENDENCY_BLOCKED
+LOCAL_VALIDATION_FAILED
+PUSH_FAILED
+PR_CREATION_FAILED
 INSUFFICIENT_EVIDENCE_FOR_REQUESTED_STATE
 ```
 
