@@ -1,0 +1,87 @@
+{
+  "schema": "ahp-external-audit-report-v1",
+  "audit": {
+    "target_repository": "https://github.com/antydizajn/anti-hallucination-protocol",
+    "target_mode": "EXACT_COMMIT",
+    "target_ref": "audit-methodology-v6",
+    "resolved_commit": "efecb86326a5935d0996cf4f3f1ba21b8106890d",
+    "observed_skill_version": "5.4.2",
+    "methodology_version": "6",
+    "methodology_commit": "efecb86326a5935d0996cf4f3f1ba21b8106890d",
+    "model": "GPT-5.6 Sol",
+    "provider_runtime": "OpenAI ChatGPT with GitHub connector",
+    "execution_capability": "PARTIAL"
+  },
+  "behavioral_result": "UNVERIFIED",
+  "findings": [
+    {
+      "finding_id": "F-001",
+      "title": "Machine-readable report contract is not lossless",
+      "reported_severity": "P1",
+      "confidence": 0.99,
+      "claim": "REPORT-CONTRACT.md declares claim and mechanism mandatory for every material finding, but the canonical machine-readable JSON example omits both fields.",
+      "mechanism": "An auditor following the canonical JSON example can produce a structurally plausible object that loses the semantic proposition and causal explanation required by the same contract, forcing downstream intake to reinterpret prose.",
+      "precondition": "ORDINARY_PATH",
+      "ordinary_path": true,
+      "local_write_required": false,
+      "attacker_control_required": false,
+      "threat_model_applicability": "IN_SCOPE",
+      "expected_behavior": "Every mandatory load-bearing finding field is represented in the machine-readable contract or an explicitly lossless equivalent.",
+      "observed_behavior": "The prose required-field list includes claim and mechanism while the canonical JSON example omits both.",
+      "reproducer": "Compare AUDIT-METHODOLOGY/REPORT-CONTRACT.md sections 'Required finding fields' and 'Machine-readable block' at target commit efecb86326a5935d0996cf4f3f1ba21b8106890d.",
+      "evidence_label": "FILE_VERIFIED",
+      "affected_components": [
+        "AUDIT-METHODOLOGY/REPORT-CONTRACT.md"
+      ],
+      "consequence": "External-audit ingestion can be lossy and can silently reinterpret the auditor's claim or mechanism.",
+      "close_variant_result": "No fixed-count or quantity-gaming contradiction was reproduced; the defect is specific to required-field parity between prose and machine-readable output.",
+      "proposed_change": "Add claim and mechanism to the canonical machine-readable finding object, publish a matching JSON Schema, and regression-test required-field parity."
+    },
+    {
+      "finding_id": "F-002",
+      "title": "Untrusted target data can become executable authority through baseline discovery",
+      "reported_severity": "P1",
+      "confidence": 0.93,
+      "claim": "The methodology declares target repository content untrusted data but later permits target-shipped tests/checkers and requires baseline discovery from target-controlled CI, README, and helpers without one universal pre-execution safety gate.",
+      "mechanism": "A compromised or adversarial target can place executable commands in target-controlled baseline surfaces. A literal auditor can execute those commands as the discovered baseline, converting target data into action authority unless an independent sandbox and inspection rule intervenes.",
+      "precondition": "MALFORMED_EXTERNAL_INPUT",
+      "ordinary_path": false,
+      "local_write_required": false,
+      "attacker_control_required": true,
+      "threat_model_applicability": "IN_SCOPE",
+      "expected_behavior": "Target content may suggest candidate commands, but every target-derived execution is inspected and run only in a constrained disposable environment unless separately authorized by the control plane.",
+      "observed_behavior": "The prompt establishes a universal untrusted-data rule but provides broad target-derived execution authority, while the explicit outside-write inspection warning is scoped only to legacy helpers.",
+      "reproducer": "Read AUDIT-METHODOLOGY/CANONICAL-AGENT-AUDIT-PROMPT.md sections '0. CONTROL PLANE / UNTRUSTED TARGET BOUNDARY', '2. SAFETY / MUTATION BOUNDARY', and '7. DISCOVER THE BASELINE, THEN RUN IT' at the resolved target commit and compare their authority rules.",
+      "evidence_label": "FILE_VERIFIED",
+      "affected_components": [
+        "AUDIT-METHODOLOGY/CANONICAL-AGENT-AUDIT-PROMPT.md"
+      ],
+      "consequence": "An execution-capable auditor can be induced to run target-defined code or violate the methodology's own read-only and no-external-side-effect boundaries.",
+      "close_variant_result": "Target-mode resolution and blindness boundaries were not contradicted; the defect is specifically the transition from untrusted target text to executable baseline authority.",
+      "proposed_change": "Add a universal TARGET-DERIVED EXECUTION GATE covering tests, checkers, package hooks, build steps, liveness scripts, and helpers: inspect first, remove credentials, constrain filesystem/network, and require separate authority for external effects."
+    },
+    {
+      "finding_id": "F-003",
+      "title": "Behavioral A/B protocol lacks explicit state isolation or reset",
+      "reported_severity": "P2",
+      "confidence": 0.90,
+      "claim": "The behavioral A/B protocol randomizes conditions and keeps runtime factors constant but does not mandate fresh sessions/processes or equivalent reset of persistent memory, cache, tool state, conversation history, and writable fixtures.",
+      "mechanism": "In a normal stateful agent, one condition can alter state consumed by a later condition. Randomization does not eliminate carryover, so treatment leakage can bias the estimated AHP effect.",
+      "precondition": "ORDINARY_PATH",
+      "ordinary_path": true,
+      "local_write_required": false,
+      "attacker_control_required": false,
+      "threat_model_applicability": "IN_SCOPE",
+      "expected_behavior": "Each condition begins from an explicitly equivalent clean state, or a defined crossover/washout design records and controls residual shared state.",
+      "observed_behavior": "The protocol specifies same agent/runtime, constant factors, randomization, and blinding but no mandatory state-reset or session-isolation clause.",
+      "reproducer": "Inspect AUDIT-METHODOLOGY/BEHAVIORAL-EVALUATION-PROTOCOL.md sections 'Experimental conditions', 'Blinding', 'Unit of analysis', and 'Acceptance criteria' and verify that no mandatory reset/isolation rule is present.",
+      "evidence_label": "FILE_VERIFIED",
+      "affected_components": [
+        "AUDIT-METHODOLOGY/BEHAVIORAL-EVALUATION-PROTOCOL.md"
+      ],
+      "consequence": "Behavioral evaluation can attribute persistent-state carryover to AHP benefit or harm, reducing causal validity even when scoring is blinded.",
+      "close_variant_result": "Randomization and blinding are present and were not rejected; they are insufficient by themselves to remove state carryover.",
+      "proposed_change": "Require fresh process/session or snapshot/restore between conditions, reset persistent state and writable fixtures, record unavoidable shared state, and define crossover/washout handling."
+    }
+  ]
+}
