@@ -1,0 +1,273 @@
+schema_version: 1.0.0
+artifact: benchmark_registry
+status: normative_gate_1_schema
+required_fields:
+  - benchmark_id
+  - canonical_name
+  - version
+  - primary_source
+  - release_date
+  - construct_primary
+  - construct_secondary
+  - task_type
+  - interaction_type
+  - unit_of_scoring
+  - answerability_classes
+  - positive_evidence_present
+  - abstention_required_present
+  - grading_type
+  - grader_identity
+  - grader_version_pin_possible
+  - human_validation_available
+  - public_or_private
+  - contamination_class
+  - contamination_evidence
+  - lineage_group
+  - overlap_status
+  - license
+  - redistribution_allowed
+  - runtime_requirements
+  - estimated_cost
+  - evidence_pool
+  - primary_eligible
+  - eligibility_reason
+fields:
+  benchmark_id:
+    type: string
+    description: Stable local identifier.
+  canonical_name:
+    type: string
+  version:
+    type: string
+    allow_unknown: true
+  revision_sha:
+    type: string_or_null
+  maintainer:
+    type: string_or_null
+  primary_source:
+    type: string
+    description: Original paper, official benchmark specification, official repository, or official dataset documentation.
+  official_repository:
+    type: string_or_null
+  official_dataset:
+    type: string_or_null
+  release_date:
+    type: date_or_null
+  last_refresh:
+    type: date_or_null
+  construct_primary:
+    type: enum
+    values:
+      - PARAMETRIC_FACTUALITY
+      - KNOWLEDGE_BOUNDARY
+      - ABSTENTION
+      - CALIBRATION
+      - FALSE_PREMISE
+      - TEMPORAL_FRESHNESS
+      - LONG_TAIL_KNOWLEDGE
+      - LONG_FORM_FACTUALITY
+      - RAG_GROUNDING
+      - RAG_ATTRIBUTION
+      - CITATION_EXISTENCE
+      - CITATION_ENTAILMENT
+      - CITATION_COMPLETENESS
+      - TOOL_FAILURE
+      - TOOL_RESULT_CONTRADICTION
+      - TOOL_RESULT_ABSENCE
+      - AGENT_COMPLETION_OVERCLAIM
+      - LONG_CONTEXT_EVIDENCE_LOSS
+      - POSITIVE_EVIDENCE_USE
+      - UNDERSPECIFICATION
+      - CONTRADICTORY_EVIDENCE
+      - SOURCE_QUALITY_DISCRIMINATION
+      - REFERENCE_WORLD
+      - SECURITY_PROMPT_INJECTION
+      - MULTIMODAL_FACTUALITY
+      - EVALUATOR_VALIDATION
+      - OTHER
+  construct_secondary:
+    type: array_string
+  construct_not_measured:
+    type: array_string
+  task_type:
+    type: string
+  domain:
+    type: array_string
+  language:
+    type: array_string
+  interaction_type:
+    type: enum
+    values: [SINGLE_TURN, MULTI_TURN, AGENTIC, MIXED]
+  tools_required:
+    type: boolean
+  retrieval_required:
+    type: boolean
+  long_context_required:
+    type: boolean
+  context_length_profile:
+    type: string_or_null
+  unit_of_scoring:
+    type: string
+  answerability_classes:
+    type: array_string
+  positive_evidence_present:
+    type: boolean_or_unknown
+  positive_evidence_fraction:
+    type: number_or_null
+  abstention_required_present:
+    type: boolean_or_unknown
+  false_premise_fraction:
+    type: number_or_null
+  partial_credit_available:
+    type: boolean_or_unknown
+  grading_type:
+    type: enum
+    values:
+      - DETERMINISTIC
+      - RULE_BASED
+      - HUMAN
+      - LLM_JUDGE
+      - HYBRID
+      - UNKNOWN
+  grader_identity:
+    type: string_or_null
+  grader_version:
+    type: string_or_null
+  grader_version_pin_possible:
+    type: boolean_or_unknown
+  grader_prompt_public:
+    type: boolean_or_unknown
+  grader_prompt_hash:
+    type: string_or_null
+  human_validation_available:
+    type: boolean_or_unknown
+  estimated_label_noise:
+    type: number_or_null
+  judge_known_failure_modes:
+    type: array_string
+  answer_key_public:
+    type: boolean_or_unknown
+  public_or_private:
+    type: enum
+    values: [PUBLIC, PRIVATE, MIXED, DYNAMIC, UNKNOWN]
+  public_split_exposure_date:
+    type: date_or_null
+  private_split_available:
+    type: boolean_or_unknown
+  heldout_available:
+    type: boolean_or_unknown
+  heldout_custodian:
+    type: string_or_null
+  dynamic_split_available:
+    type: boolean_or_unknown
+  temporal_split_available:
+    type: boolean_or_unknown
+  contamination_class:
+    type: enum
+    values: [C0, C1, C2, C3, CX]
+    semantics:
+      C0: genuinely sealed with no known exposure evidence; absence of contamination is not proven
+      C1: new_or_dynamic_but_publicly_visible
+      C2: historical_public_benchmark
+      C3: direct_overlap_evidence_or_high_contamination_suspicion
+      CX: unknown
+  contamination_evidence:
+    type: array_string
+  contamination_unknowns:
+    type: array_string
+  known_model_exposure:
+    type: string_or_null
+  benchmark_memorization_risk:
+    type: enum
+    values: [LOW, MEDIUM, HIGH, UNKNOWN]
+  intervention_leakage_risk:
+    type: enum
+    values: [LOW, MEDIUM, HIGH, UNKNOWN]
+  grader_leakage_risk:
+    type: enum
+    values: [LOW, MEDIUM, HIGH, UNKNOWN]
+  temporal_staleness_risk:
+    type: enum
+    values: [LOW, MEDIUM, HIGH, UNKNOWN]
+  lineage_group:
+    type: string
+  source_dataset:
+    type: array_string
+  upstream_dataset:
+    type: array_string
+  derived_from:
+    type: array_string
+  generation_model:
+    type: string_or_null
+  generation_prompt_available:
+    type: boolean_or_unknown
+  generation_date:
+    type: date_or_null
+  shared_items_with:
+    type: array_string
+  shared_generation_pipeline_with:
+    type: array_string
+  shared_grader_with:
+    type: array_string
+  overlap_status:
+    type: enum
+    values: [NOT_CHECKED, NO_KNOWN_OVERLAP, EXACT_OVERLAP, NEAR_DUPLICATE_SIGNAL, SHARED_LINEAGE, UNKNOWN]
+  exact_overlap_hash:
+    type: string_or_null
+  normalized_ngram_fingerprint:
+    type: string_or_null
+  semantic_neighbor_signal:
+    type: string_or_null
+  license:
+    type: string_or_null
+  license_verified:
+    type: boolean
+  redistribution_allowed:
+    type: boolean_or_unknown
+  commercial_use:
+    type: boolean_or_unknown
+  runtime_requirements:
+    type: array_string
+  estimated_tokens:
+    type: number_or_null
+  estimated_tool_calls:
+    type: number_or_null
+  estimated_cost:
+    type: string_or_null
+  estimated_runtime:
+    type: string_or_null
+  evidence_pool:
+    type: enum
+    values:
+      - D0_MEASUREMENT_DEVELOPMENT
+      - D1_CONTROL_DISCOVERY
+      - D2_CONFIRMATORY_CANDIDATE
+      - T_TRANSFER_CANDIDATE
+      - EXCLUDE
+  exposure_to_intervention_designers:
+    type: enum
+    values: [NONE, METADATA_ONLY, ITEM_LEVEL, RESULTS_LEVEL, UNKNOWN]
+  public_leaderboard_seen_by_designers:
+    type: boolean_or_unknown
+  primary_eligible:
+    type: boolean
+  eligibility_reason:
+    type: string
+  secondary_only_reason:
+    type: string_or_null
+  reviewer:
+    type: string_or_null
+  review_date:
+    type: date_or_null
+  notes:
+    type: array_string
+validation_rules:
+  - "primary_eligible == true requires primary_source != null"
+  - "primary_eligible == true requires license_verified == true"
+  - "primary_eligible == true requires overlap_status != NOT_CHECKED"
+  - "primary_eligible == true requires contamination_class != CX unless explicit exception is preregistered"
+  - "evidence_pool == D2_CONFIRMATORY_CANDIDATE requires exposure_to_intervention_designers in [NONE, METADATA_ONLY]"
+  - "evidence_pool == D2_CONFIRMATORY_CANDIDATE forbids public_leaderboard_seen_by_designers == true when leaderboard outcomes materially influenced intervention design"
+  - "grading_type == LLM_JUDGE requires grader_identity and judge_known_failure_modes review"
+  - "positive_evidence_present == false prevents use as sole abstention-sensitive primary instrument"
+  - "shared lineage does not count as independent benchmark evidence merely because benchmark_id differs"
