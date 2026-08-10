@@ -124,7 +124,142 @@
     },
     "contamination_flags": {"type": "array", "items": {"type": "string"}}
   },
+  "allOf": [
+    {
+      "$comment": "CONTROL must not be describable as carrying the treatment.",
+      "if": {"properties": {"condition": {"const": "CONTROL"}}, "required": ["condition"]},
+      "then": {
+        "properties": {
+          "ahp": {
+            "properties": {
+              "expected_state": {"const": "ABSENT"},
+              "installed": {"const": false},
+              "installed_skill_blob": {"type": "null"},
+              "discoverable": {"const": false},
+              "preload_requested": {"const": false},
+              "runtime_load_evidence": {"enum": ["NOT_APPLICABLE", "OBSERVED"]}
+            }
+          }
+        }
+      }
+    },
+    {
+      "$comment": "LEGACY carries v2.0.0.",
+      "if": {"properties": {"condition": {"const": "LEGACY"}}, "required": ["condition"]},
+      "then": {"properties": {"ahp": {"properties": {"expected_state": {"const": "LEGACY"}}}}}
+    },
+    {
+      "$comment": "CURRENT carries the v5.4.2 anchor.",
+      "if": {"properties": {"condition": {"const": "CURRENT"}}, "required": ["condition"]},
+      "then": {"properties": {"ahp": {"properties": {"expected_state": {"const": "CURRENT"}}}}}
+    },
+    {
+      "$comment": "installed=false cannot carry an installed blob or byte identity proof.",
+      "if": {
+        "properties": {"ahp": {"properties": {"installed": {"const": false}}, "required": ["installed"]}},
+        "required": ["ahp"]
+      },
+      "then": {
+        "properties": {
+          "ahp": {
+            "properties": {
+              "installed_skill_blob": {"type": "null"},
+              "byte_identity_verified": {"const": false}
+            }
+          }
+        }
+      }
+    },
+    {
+      "$comment": "A COMPLETE run must carry real artifacts; INSTALLED != LOADED must be evidenced for treatments.",
+      "if": {"properties": {"disposition": {"const": "COMPLETE"}}, "required": ["disposition"]},
+      "then": {
+        "properties": {
+          "artifacts": {
+            "required": ["session_id", "transcript", "trace", "case_results"],
+            "properties": {
+              "session_id": {"type": "string", "minLength": 1},
+              "transcript": {"$ref": "#/$defs/present_artifact"},
+              "trace": {"$ref": "#/$defs/present_artifact"},
+              "case_results": {"$ref": "#/$defs/present_artifact"}
+            }
+          },
+          "fixtures": {"properties": {"tree_sha256": {"$ref": "#/$defs/sha256"}}},
+          "ahp": {
+            "properties": {
+              "runtime_load_evidence": {"enum": ["OBSERVED", "NOT_APPLICABLE"]}
+            }
+          }
+        }
+      }
+    },
+    {
+      "$comment": "A treatment run cannot be COMPLETE without observed runtime load evidence.",
+      "if": {
+        "allOf": [
+          {"properties": {"disposition": {"const": "COMPLETE"}}, "required": ["disposition"]},
+          {"properties": {"condition": {"enum": ["LEGACY", "CURRENT"]}}, "required": ["condition"]}
+        ]
+      },
+      "then": {
+        "properties": {
+          "ahp": {
+            "required": ["runtime_load_evidence_detail"],
+            "properties": {
+              "installed": {"const": true},
+              "byte_identity_verified": {"const": true},
+              "discoverable": {"const": true},
+              "preload_requested": {"const": true},
+              "runtime_load_evidence": {"const": "OBSERVED"},
+              "runtime_load_evidence_detail": {"type": "string", "minLength": 1},
+              "installed_skill_blob": {"$ref": "#/$defs/git_blob"},
+              "source_skill_blob": {"$ref": "#/$defs/git_blob"},
+              "source_commit": {"$ref": "#/$defs/git_commit"}
+            }
+          }
+        }
+      }
+    },
+    {
+      "$comment": "A run that is not COMPLETE must say why.",
+      "if": {
+        "properties": {"disposition": {"enum": ["INVALID", "CONTAMINATED", "ABORTED"]}},
+        "required": ["disposition"]
+      },
+      "then": {
+        "required": ["invalidation_reasons"],
+        "properties": {
+          "invalidation_reasons": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}}
+        }
+      }
+    },
+    {
+      "$comment": "run_id arm suffix must match the declared condition.",
+      "if": {"properties": {"condition": {"const": "CONTROL"}}, "required": ["condition"]},
+      "then": {"properties": {"run_id": {"pattern": "-A$"}}}
+    },
+    {
+      "if": {"properties": {"condition": {"const": "LEGACY"}}, "required": ["condition"]},
+      "then": {"properties": {"run_id": {"pattern": "-B$"}}}
+    },
+    {
+      "if": {"properties": {"condition": {"const": "CURRENT"}}, "required": ["condition"]},
+      "then": {"properties": {"run_id": {"pattern": "-C$"}}}
+    }
+  ],
   "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "git_blob": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "git_commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "present_artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
     "artifact": {
       "type": "object",
       "additionalProperties": false,

@@ -41,6 +41,21 @@ def fixture_paths_from_generator(path: Path) -> set[str]:
     return set(re.findall(r'^\s*"([A-Za-z0-9._/-]+)"\s*:', text, flags=re.M))
 
 
+def produced_artifacts(corpora) -> set[str]:
+    """Paths a case CREATES during execution, declared per case.
+
+    These are expected OUTPUTS (e.g. D14 writes its own restart proof), so the
+    fixture generator must not pre-create them. Declaring them in the case keeps
+    the rule data-driven instead of hardcoding an exception in the validator.
+    """
+    declared: set[str] = set()
+    for corpus in corpora:
+        for case in corpus.get("cases") or []:
+            for path in case.get("produced_artifacts") or []:
+                declared.add(str(path))
+    return declared
+
+
 def main() -> int:
     required = [
         IA / "BENCHMARK-DESIGN.md",
@@ -97,6 +112,7 @@ def main() -> int:
         fail(f"timed-core sequence is not contiguous: {seq}")
 
     fixtures = fixture_paths_from_generator(IA / "RUNNERS/setup_fixtures.py")
+    generated_during_run = produced_artifacts((quick, deep))
     known_fixture_refs = set()
     for corpus in (quick, deep):
         for case in corpus.get("cases") or []:
@@ -106,7 +122,15 @@ def main() -> int:
                     known_fixture_refs.add(m.rstrip(".,;:)"))
     # Only assert explicit file-looking references. Directory references are valid.
     file_refs = {x for x in known_fixture_refs if "." in x.rsplit("/", 1)[-1]}
-    missing_refs = sorted(x for x in file_refs if x not in fixtures)
+    # Case-produced artifacts are outputs, not inputs: they must NOT exist in the
+    # generator, and a case must not claim to produce something the generator
+    # already creates.
+    collisions = sorted(generated_during_run & fixtures)
+    if collisions:
+        fail("cases declare produced_artifacts that the generator also creates: " + ", ".join(collisions))
+    missing_refs = sorted(
+        x for x in file_refs if x not in fixtures and x not in generated_during_run
+    )
     if missing_refs:
         fail("case text references fixture files absent from generator: " + ", ".join(missing_refs))
 
@@ -122,11 +146,20 @@ def main() -> int:
         if invariant not in design:
             fail(f"experimental contract lost invariant: {invariant}")
 
+    # The scorer must be able to name a metric for every case that can actually
+    # be executed, otherwise a run looks scored while measuring nothing.
+    scorer_source = (IA / "RUNNERS/score_run.py").read_text(encoding="utf-8")
+    executable_ids = [c.get("id") for c in qcases] + core_ids
+    unmapped = [cid for cid in executable_ids if f'"{cid}"' not in scorer_source]
+    if unmapped:
+        fail("score_run.py has no metric mapping for executable cases: " + ", ".join(unmapped))
+
     print("PASS: benchmark static integrity")
     print(f"QUICK-5 cases: {len(qcases)}")
     print(f"DEEP-60 pool cases: {len(dcases)}")
     print(f"DEEP-60 timed core cases: {len(execution)}")
     print(f"Generated fixture paths detected: {len(fixtures)}")
+    print(f"Case-produced artifacts declared: {len(generated_during_run)}")
     return 0
 
 
