@@ -1,39 +1,51 @@
-# External audit index
+# External Audit Registry
 
-This index records intake metadata. Inclusion is archival, not acceptance of findings.
+This registry indexes external evidence. Inclusion means archived/intake-recorded, not accepted.
 
-## 2026-08-09 - Hermes / Claude Opus 5 - collaborator submission
+## Status vocabulary
 
-Status: `RAW_SUBMISSION_RECEIVED`
+```text
+INTAKE
+ADJUDICATION
+REPRODUCTION
+REMEDIATION
+CLOSED
+```
+
+Evidence state and disposition live in each audit's own files and must not be inferred from this index.
+
+## Audits
+
+| audit ID | date | executor/model | target | artifact | verdict | workflow state | path |
+|---|---|---|---|---|---|---|---|
+| EXT-20260809-001 | 2026-08-09 | Hermes Agent / Claude Opus 5 | c6ee5f1daade5bb39632b879613a27895f7ccf83 / v5.4.2 | HASH_RECORDED | STRONG BUT NEEDS FIXES | INTAKE | `2026-08-09/EXT-20260809-001-hermes-opus5/` |
+
+## EXT-20260809-001 artifact identity
 
 ```text
 submitted filename: AHP-AUDIT-2026-08-09-hermes-opus5.md
 size: 43202 bytes
 sha256: eaee5c00ffe6d53c9d518f57a8aa71522f4b3839b01c7264a9191dea1c0afee8
-submitter relation: external collaborator / user's colleague
-executor: Hermes Agent
-model: Claude Opus 5
-provider/runtime: Palantir Foundry proxy
-audit date declared by report: 2026-08-09 Europe/Warsaw
-prompt: AUDITS/CANONICAL-AGENT-AUDIT-PROMPT.md, Iteration 5
-phase order claimed: blind Phase A before AUDITS/**
-target commit declared: c6ee5f1daade5bb39632b879613a27895f7ccf83
-version audited: 5.4.2
-execution capability claimed: yes
-report verdict: STRONG BUT NEEDS FIXES
-install recommendation: YES with caveats
-confidence claimed: 88%
+artifact state: HASH_RECORDED
+raw bytes committed: NO
 ```
 
-Prominent reported findings, not yet equivalent to canonical acceptance merely because they are indexed:
+Do not describe this artifact as `RAW_ARCHIVED` until exact original bytes are committed and reverified against the hash.
+
+See:
 
 ```text
-F-N01 / P1 - canonical schema content is load-bearing but content-unchecked
-F-N02 / P2 - liveness cannot establish honesty of critical verifier implementations
-F-N03 / P2 - vacuous / tautological regex can earn FOUND
-F-N08 / P2 - integrity can pass while a provenance dependency is missing
-F-N09 / P2 - structurally strong T3 record can be constructed from memory/self-reported metadata
-F-N10 / P3 - caller-supplied permissive schema can expose KeyError / exit-code category mismatch
+EXTERNAL-AUDITS/2026-08-09/EXT-20260809-001-hermes-opus5/MANIFEST.json
+EXTERNAL-AUDITS/2026-08-09/EXT-20260809-001-hermes-opus5/FINDINGS.md
+EXTERNAL-AUDITS/2026-08-09/EXT-20260809-001-hermes-opus5/ADJUDICATION.md
 ```
 
-The raw artifact's byte identity is defined by the size and SHA-256 above. Any normalized Markdown copy should be marked separately if its bytes differ.
+## Rule
+
+Never convert:
+
+```text
+number of reports -> number of independent confirmations
+```
+
+Use `REGISTERS/CORRELATION.md` before making any cross-audit consensus claim.
