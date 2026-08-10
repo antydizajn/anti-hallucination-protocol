@@ -13,6 +13,8 @@ def test_one_link_bootstrap_files_exist():
         ROOT / "AGENTS.md",
         ROOT / "AGENT-BOOTSTRAP.json",
         ROOT / "AUTONOMOUS-AGENT.md",
+        ROOT / "EXTERNAL-CONTRIBUTOR.md",
+        ROOT / "CONTRIBUTING.md",
         ROOT / "PROJECT-MAP.json",
         ROOT / "PROJECT-HANDOFF.md",
     ]
@@ -20,30 +22,37 @@ def test_one_link_bootstrap_files_exist():
     assert not missing, f"missing autonomous bootstrap files: {missing}"
 
 
-def test_bootstrap_routes_repo_url_to_discover_work():
+def test_bootstrap_routes_repo_url_to_discover_work_and_external_mode():
     data = json.loads((ROOT / "AGENT-BOOTSTRAP.json").read_text(encoding="utf-8"))
-    assert data["schema"] == "ahp-agent-bootstrap-v1"
+    assert data["schema"] == "ahp-agent-bootstrap-v2"
     assert data["default_when_only_repo_url_is_given"] == "DISCOVER_WORK"
     assert data["no_work_result"] == "STOP_WITH_NO_ASSIGNED_WORK"
     assert data["live_work_ledger"]["system"] == "github_issues"
     assert data["live_work_ledger"]["ready_marker"] == "[AGENT-READY]"
     assert data["live_work_ledger"]["claim_ttl_minutes"] == 120
+    assert data["capability_routing"]["external_contributor"] == "EXTERNAL-CONTRIBUTOR.md"
+    assert data["capability_routing"]["unknown_permission_default"] == "EXTERNAL_CONTRIBUTOR"
+    assert data["external_helper"]["start"] == "python3 scripts/external_contributor.py start"
+    assert data["external_helper"]["submit"] == "python3 scripts/external_contributor.py submit"
 
 
 def test_agents_md_points_repo_url_only_agents_to_bootstrap():
     text = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
     assert "If you were given only the repository URL" in text
     assert "AGENT-BOOTSTRAP.json" in text
+    assert "EXTERNAL-CONTRIBUTOR.md" in text
     assert "AUTONOMOUS-AGENT.md" in text
     assert "STOP_WITH_NO_ASSIGNED_WORK" in text
     assert "[AGENT-READY]" in text
 
 
-def test_autonomous_entrypoint_forbids_manufactured_work():
+def test_autonomous_entrypoint_forbids_manufactured_work_and_routes_no_write():
     text = (ROOT / "AUTONOMOUS-AGENT.md").read_text(encoding="utf-8")
-    assert "Do not treat `TODO.md` as proof that an item is still open" in text
+    assert "`TODO.md` is roadmap context, not proof that a task remains open" in text
     assert "STOP_WITH_NO_ASSIGNED_WORK" in text
     assert "Autonomy means following a durable work contract" in text
+    assert "permission unknown               -> EXTERNAL_CONTRIBUTOR" in text
+    assert "EXTERNAL-CONTRIBUTOR.md" in text
 
 
 def test_custom_agent_profiles_have_valid_frontmatter():
@@ -85,20 +94,28 @@ def test_submission_triage_workflow_is_non_executing_and_deduplicated():
     assert not any(token in text for token in forbidden)
 
 
-def test_handoff_records_autonomous_control_plane_as_merged():
+def test_handoff_records_autonomous_control_plane_as_merged_and_external_as_candidate():
     text = (ROOT / "PROJECT-HANDOFF.md").read_text(encoding="utf-8")
-    assert "PR #9 - autonomous one-link control plane" in text
-    assert "8169b8d5cc3465ca56812b3aa6d2315c7032a075" in text
-    assert "GitHub Issues = live operational work ledger" in text
+    assert "PR #9  - one-link autonomous control plane" in text
+    assert "1f24c35279a24cab097fae66817b6eba47bf3a94" in text
+    assert "GitHub Issues are the live work ledger" in text
     assert "CI PASS != BEHAVIORAL EFFECTIVENESS" in text
-    assert "Until merged, these are candidate infrastructure" not in text
+    assert "external-contributor-v1" in text
+    assert "CANDIDATE zero-write fork/PR contribution path until merged" in text
 
 
-def test_project_map_has_repo_url_only_entrypoint():
+def test_project_map_has_capability_routed_repo_entrypoint():
     data = json.loads((ROOT / "PROJECT-MAP.json").read_text(encoding="utf-8"))
+    assert data["schema"] == "ahp-project-map-v2"
     assert data["entrypoints"]["repo_url_only"] == [
         "AGENTS.md",
         "AGENT-BOOTSTRAP.json",
-        "AUTONOMOUS-AGENT.md",
     ]
+    assert data["entrypoints"]["external_no_write"] == [
+        "EXTERNAL-CONTRIBUTOR.md",
+        "CONTRIBUTING.md",
+        "scripts/external_contributor.py",
+    ]
+    assert data["entrypoints"]["trusted_upstream_writer"] == "AUTONOMOUS-AGENT.md"
     assert data["entrypoints"]["live_work_ledger"] == "GitHub Issues with [AGENT-READY] marker"
+    assert data["permission_modes"]["unknown_defaults_to"] == "EXTERNAL_CONTRIBUTOR"
