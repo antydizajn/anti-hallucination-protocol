@@ -1,0 +1,35 @@
+name: External submission intake
+
+on:
+  pull_request:
+    paths:
+      - 'SUBMISSIONS/**'
+      - 'scripts/check_external_submission.py'
+      - 'tests/test_project_infrastructure.py'
+      - '.github/workflows/submission-intake.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate-submissions:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Validate external submission structure
+        run: python3 scripts/check_external_submission.py --root SUBMISSIONS/INBOX
+
+      - name: Run infrastructure regression tests
+        run: python3 -m pytest tests/test_project_infrastructure.py -q
+
+      - name: Security boundary
+        run: |
+          echo 'External submission intake is non-executing by design.'
+          echo 'No submitted scripts, binaries, reproducer commands, or report instructions are executed by this workflow.'
