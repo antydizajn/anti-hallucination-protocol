@@ -1,0 +1,52 @@
+schema_version: 1.0.0
+artifact: grader_risk_register
+status: normative_gate_1_schema
+purpose: prevent evaluator instability becoming hidden model evidence
+required:
+  - grader_id
+  - grader_type
+  - version_pin
+  - prompt_pin
+  - calibration_status
+  - known_failure_modes
+fields:
+  grader_id:
+    type: string
+  grader_type:
+    enum: [DETERMINISTIC, RULE_BASED, HUMAN, LLM_JUDGE, HYBRID, UNKNOWN]
+  model:
+    type: string_or_null
+  provider:
+    type: string_or_null
+  version_pin:
+    type: string_or_null
+  prompt_pin:
+    enum: [HASHED, PUBLIC, PRIVATE, NONE, UNKNOWN]
+  prompt_hash:
+    type: string_or_null
+  temperature_or_sampling:
+    type: string_or_null
+  calibration_status:
+    enum: [VALIDATED, PARTIAL, NOT_VALIDATED, UNKNOWN]
+  human_agreement:
+    value: number_or_null
+    metric: string_or_null
+  known_failure_modes:
+    type: list
+  arm_bias_checks:
+    status: PASS|FAIL|NOT_RUN|UNKNOWN
+  position_bias_checks:
+    status: PASS|FAIL|NOT_RUN|UNKNOWN
+  verbosity_bias_checks:
+    status: PASS|FAIL|NOT_RUN|UNKNOWN
+  citation_bias_checks:
+    status: PASS|FAIL|NOT_RUN|UNKNOWN
+  adversarial_checks:
+    type: list
+  primary_eligible:
+    type: boolean
+rules:
+  - LLM_JUDGE without version pin requires downgrade
+  - LLM_JUDGE without known failure analysis cannot be sole primary grader
+  - grader errors must not become model errors
+  - grader changes create new measurement identity
