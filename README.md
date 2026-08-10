@@ -13,9 +13,40 @@
 
 A Hermes Agent skill for the moment between **"this looks right"** and **"I'm going to state it as fact."**
 
-[Install](#install) · [Failure modes](#failure-modes-it-targets) · [How it works](#how-it-works) · [Limits](#what-it-does-not-prove) · [Roadmap](TODO.md)
+[Install](#install) · [Failure modes](#failure-modes-it-targets) · [How it works](#how-it-works) · [Limits](#what-it-does-not-prove) · [Roadmap](TODO.md) · [External agent / no write access](EXTERNAL-CONTRIBUTOR.md)
 
 </div>
+
+---
+
+## External agents and contributors
+
+You do **not** need write access to this repository to contribute an audit, test, reproducer, documentation change or code fix.
+
+If you are a completely fresh AI agent and received only this repository URL, start with [`AGENTS.md`](AGENTS.md). If you cannot push upstream, the canonical route is [`EXTERNAL-CONTRIBUTOR.md`](EXTERNAL-CONTRIBUTOR.md).
+
+Minimum-friction external path:
+
+```bash
+gh repo clone antydizajn/anti-hallucination-protocol
+cd anti-hallucination-protocol
+python3 scripts/external_contributor.py start
+# perform the selected [AGENT-READY] task
+python3 scripts/external_contributor.py submit
+```
+
+The helper is designed for:
+
+```text
+PUBLIC REPO
+-> NO UPSTREAM WRITE
+-> FORK
+-> CONTRIBUTOR BRANCH
+-> LOCAL VALIDATION
+-> PULL REQUEST
+```
+
+Do not request collaborator `Write` merely to submit work. A Pull Request is a proposal, not project acceptance.
 
 ---
 
@@ -260,7 +291,7 @@ The multi-model audit corpus and synthesis are archived under [`AUDITS/`](AUDITS
 
 For a fresh independent audit, use [`AUDITS/CANONICAL-AGENT-AUDIT-PROMPT.md`](AUDITS/CANONICAL-AGENT-AUDIT-PROMPT.md). It includes five iterations of the methodology and a final blind-first copy-paste prompt for independent agents.
 
-For a completely fresh continuation session, start with [`PROJECT-HANDOFF.md`](PROJECT-HANDOFF.md). It contains a three-iteration cold-start reconstruction of the project state, historical decisions, release evidence, startup integration, and the next behavioral-evaluation frontier. Treat the handoff as navigation, then verify current reality from the repository.
+For a completely fresh continuation session, start with [`PROJECT-HANDOFF.md`](PROJECT-HANDOFF.md). It is a compact cold-start checkpoint covering current navigation, branch roles, trust boundaries and unresolved frontiers. Treat it as navigation, then verify current reality from the repository.
 
 For the current post-release backlog, use [`TODO.md`](TODO.md). It separates documentation/archive hygiene, behavioral benchmarking, Hermes runtime work, provenance/live-state research, portability and release maintenance. Treat roadmap status as mutable and verify before acting.
 
@@ -293,30 +324,38 @@ This is a protocol for making unsupported certainty harder, not impossible.
 
 ```text
 anti-hallucination-protocol/
+├── README.md                             # public contract, homepage and external entrypoint
+├── AGENTS.md                             # root agent navigation and capability routing
+├── AGENT-BOOTSTRAP.json                  # machine-readable trusted/external router
+├── AUTONOMOUS-AGENT.md                   # trusted upstream-agent workflow
+├── EXTERNAL-CONTRIBUTOR.md               # zero-write fork/PR workflow
+├── CONTRIBUTING.md                       # GitHub-native contributor entrypoint
+├── PROJECT-MAP.json                      # machine-readable branch/path/trust map
+├── PROJECT-HANDOFF.md                    # compact cold-start continuation state
 ├── SKILL.md                              # active Hermes policy / hot path
-├── README.md                             # public contract, install and limits
 ├── TODO.md                               # post-v5.4.2 roadmap
-├── PROJECT-HANDOFF.md                    # cold-start continuation state
 ├── LICENSE
+├── AGENT-IDENTITY/                       # optional cryptographic sender identity
+├── SUBMISSIONS/                          # external machine-friendly intake
 ├── .github/
+│   ├── agents/                           # repository custom-agent role profiles
 │   └── workflows/
-│       └── ci.yml                        # Python 3.11 / 3.13 regression gate
+│       ├── ci.yml                        # Python 3.11 / 3.13 regression gate
+│       ├── submission-intake.yml         # unprivileged fork-PR intake validation
+│       └── submission-triage.yml         # post-merge Issue creation
 ├── AUDITS/
 │   ├── SUMMARY.md                        # top-level synthesis through v5.4.2
 │   ├── v5.4-round3-v5.4.1-summary.md     # detailed Round 3 adjudication
 │   ├── v5.4.2-release-status.md          # final v5.4.2 release evidence/status
 │   ├── v5.4.1-hardening-status.md        # historical v5.4.1 release evidence
-│   ├── CANONICAL-AGENT-AUDIT-PROMPT.md   # five-pass blind-first audit prompt
-│   ├── gpt-5.6-sol-v5.4-prompt-review.md # methodology review
-│   ├── big-pickle-4.md                   # v5.4 execution audit artifact
-│   ├── PPX-GLM5.2.md                     # historical placeholder, not raw archive
+│   ├── CANONICAL-AGENT-AUDIT-PROMPT.md   # blind-first audit prompt on current main
 │   └── ...historical and Round 3 audit artifacts
 ├── assets/
 │   └── anti-hallucination-eye.svg
 ├── references/
-│   ├── adversarial-cases.md              # protocol-level attack specification
-│   ├── evidence-record.schema.json       # machine-readable evidence contract
-│   ├── evidence-state-model.md           # executable-state semantics
+│   ├── adversarial-cases.md
+│   ├── evidence-record.schema.json
+│   ├── evidence-state-model.md
 │   ├── research-foundations.md
 │   ├── v5-research-manifest.json
 │   ├── v5-gap-map.md
@@ -328,14 +367,14 @@ anti-hallucination-protocol/
 │   ├── multi-judge-ensemble.md
 │   └── vetting-external-project-claims.md
 ├── scripts/
-│   ├── verify_claim.py                   # narrow filesystem/text/command verifier
-│   ├── check_evidence_record.py          # schema + cross-field invariants
-│   ├── check_v5_integrity.py             # exact-release repository contract
-│   ├── check_research_provenance.py      # offline research identity consistency
-│   ├── liveness_check.sh                 # portable L1/L2 installation checks
-│   └── ...legacy/non-load-bearing helpers
+│   ├── external_contributor.py            # zero-write fork + validation + PR helper
+│   ├── verify_claim.py
+│   ├── check_evidence_record.py
+│   ├── check_v5_integrity.py
+│   ├── check_research_provenance.py
+│   └── liveness_check.sh
 └── tests/
-    ├── adversarial_cases.md               # executable-test companion corpus
+    ├── test_external_contributor.py
     ├── test_verify_claim.py
     ├── test_evidence_record.py
     ├── test_v5_integrity.py
