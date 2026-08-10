@@ -1,0 +1,34 @@
+{
+  "schema": "ahp-external-submission-v1",
+  "submission_id": "SUB-YYYYMMDD-source-id",
+  "submission_type": "FORENSIC_AUDIT",
+  "submitted_at": "UNKNOWN",
+  "submitter": {
+    "type": "UNKNOWN",
+    "name": "UNKNOWN"
+  },
+  "executor": {
+    "type": "UNKNOWN",
+    "model": "UNKNOWN",
+    "provider_runtime": "UNKNOWN"
+  },
+  "target": {
+    "repository": "https://github.com/antydizajn/anti-hallucination-protocol",
+    "ref": "UNKNOWN",
+    "commit": "UNKNOWN"
+  },
+  "methodology": {
+    "name": "UNKNOWN",
+    "version": "UNKNOWN",
+    "commit": "UNKNOWN"
+  },
+  "execution_occurred": false,
+  "artifacts": [
+    {
+      "path": "REPORT.md",
+      "sha256": "UNKNOWN"
+    }
+  ],
+  "declared_findings": [],
+  "correlation_hints": []
+}
